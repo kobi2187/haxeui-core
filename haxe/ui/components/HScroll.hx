@@ -2,13 +2,12 @@ package haxe.ui.components;
 
 import haxe.ui.core.MouseEvent;
 import haxe.ui.layouts.DefaultLayout;
-import haxe.ui.core.IClonable;
 
 /**
  A horizontal implementation of a `Scroll`
 **/
-@:dox(icon="/icons/ui-scroll-bar-horizontal.png")
-class HScroll extends Scroll implements IClonable<HScroll> {
+@:dox(icon = "/icons/ui-scroll-bar-horizontal.png")
+class HScroll extends Scroll {
     public function new() {
         super();
     }
@@ -16,7 +15,7 @@ class HScroll extends Scroll implements IClonable<HScroll> {
     //***********************************************************************************************************
     // Internals
     //***********************************************************************************************************
-    private override function createDefaults():Void {
+    private override function createDefaults() {
         super.createDefaults();
         _defaultLayout = new HScrollLayout();
     }
@@ -27,7 +26,7 @@ class HScroll extends Scroll implements IClonable<HScroll> {
     private override function _onThumbMouseDown(event:MouseEvent) {
         super._onThumbMouseDown(event);
 
-        _mouseDownOffset = event.screenX - _thumb.left;
+        _mouseDownOffset = event.screenX - _thumb.left + layout.paddingLeft;
     }
 
     private override function _onScreenMouseMove(event:MouseEvent) {
@@ -38,11 +37,11 @@ class HScroll extends Scroll implements IClonable<HScroll> {
 
         var xpos:Float = event.screenX - _mouseDownOffset;
         var minX:Float = 0;
-        if (_deincButton != null) {
+        if (_deincButton != null && _deincButton.hidden == false) {
             minX = _deincButton.componentWidth + layout.horizontalSpacing;
         }
         var maxX:Float = layout.usableWidth - _thumb.componentWidth;
-        if (_deincButton != null) {
+        if (_deincButton != null && _deincButton.hidden == false) {
             maxX += _deincButton.componentWidth + layout.horizontalSpacing;
         }
         if (xpos < minX) {
@@ -58,6 +57,14 @@ class HScroll extends Scroll implements IClonable<HScroll> {
         var newValue:Float = min + ((v / ucx) * m);
         pos = newValue;
     }
+
+    private override function _onMouseDown(event:MouseEvent) {
+        if (event.screenX < _thumb.screenLeft) {
+            animatePos(pos - pageSize);
+        } else if (event.screenX > _thumb.screenLeft + _thumb.componentWidth) {
+            animatePos(pos + pageSize);
+        }
+    }
 }
 
 //***********************************************************************************************************
@@ -69,7 +76,7 @@ class HScrollLayout extends DefaultLayout {
         super();
     }
 
-    public override function resizeChildren():Bool {
+    public override function resizeChildren() {
         super.resizeChildren();
 
         var scroll:Scroll = cast component;
@@ -87,10 +94,9 @@ class HScrollLayout extends DefaultLayout {
                 thumb.componentWidth = thumbWidth;
             }
         }
-        return true;
     }
 
-    public override function repositionChildren():Void {
+    public override function repositionChildren() {
         super.repositionChildren();
 
         var deinc:Button = component.findComponent("scroll-deinc-button");

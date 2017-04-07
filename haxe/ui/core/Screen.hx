@@ -1,6 +1,5 @@
 package haxe.ui.core;
 
-import haxe.ui.animation.Animation;
 import haxe.ui.animation.AnimationManager;
 import haxe.ui.backend.ScreenBase;
 import haxe.ui.components.Label;
@@ -8,7 +7,6 @@ import haxe.ui.containers.HBox;
 import haxe.ui.containers.dialogs.Dialog;
 import haxe.ui.containers.dialogs.DialogButton;
 import haxe.ui.containers.dialogs.DialogOptions;
-import haxe.ui.containers.dialogs.MessageDialog;
 import haxe.ui.focus.FocusManager;
 import haxe.ui.util.EventMap;
 
@@ -24,9 +22,6 @@ class DialogEntry {
 }
 
 class Screen extends ScreenBase {
-    private var _dialogs:Map<Dialog, DialogEntry> = new Map<Dialog, DialogEntry>();
-
-    public var rootComponents:Array<Component> = new Array<Component>();
 
     private static var _instance:Screen;
     public static var instance(get, never):Screen;
@@ -40,23 +35,57 @@ class Screen extends ScreenBase {
     //***********************************************************************************************************
     // Instance
     //***********************************************************************************************************
+    public var rootComponents:Array<Component>;
+
+    private var _dialogs:Map<Dialog, DialogEntry>;
     private var _eventMap:EventMap;
 
     public function new() {
         super();
+        rootComponents = [];
+        _dialogs = new Map<Dialog, DialogEntry>();
         _eventMap = new EventMap();
     }
 
     public override function addComponent(component:Component) {
         super.addComponent(component);
-        component.ready();
+        //component.ready();
         rootComponents.push(component);
         FocusManager.instance.pushView(component);
+        component.registerEvent(UIEvent.RESIZE, _onRootComponentResize);    //refresh vh & vw
     }
 
     public override function removeComponent(component:Component) {
         super.removeComponent(component);
         rootComponents.remove(component);
+        component.unregisterEvent(UIEvent.RESIZE, _onRootComponentResize);
+    }
+
+    public function setComponentIndex(child:Component, index:Int) {
+        if (index >= 0 && index <= rootComponents.length) {
+            handleSetComponentIndex(child, index);
+            rootComponents.remove(child);
+            rootComponents.insert(index, child);
+        }
+    }
+
+    public function refreshStyleRootComponents() {
+        for (component in rootComponents) {
+            _refreshStyleComponent(component);
+        }
+    }
+
+    @:access(haxe.ui.core.Component)
+    private function _refreshStyleComponent(component:Component) {
+        for (child in component.childComponents) {
+            child.applyStyle(child.style);
+            child.invalidateDisplay();
+            _refreshStyleComponent(child);
+        }
+    }
+
+    private function _onRootComponentResize(e:UIEvent) {
+        _refreshStyleComponent(e.target);
     }
 
     //***********************************************************************************************************
@@ -135,7 +164,7 @@ class Screen extends ScreenBase {
         var y = (height / 2) - (dialog.componentHeight / 2);
         var vars:Map<String, Float> = [
             "startLeft" => x,
-            "startTop" => -dialog.componentHeight,
+            "startTop" => y + 20,
             "endLeft" => x,
             "endTop" => y
         ];
@@ -185,7 +214,6 @@ class Screen extends ScreenBase {
         }
 
         var buttons:Array<Dynamic> = o.buttons;
-        trace(o.buttons);
         for (b in buttons) {
             if (Std.is(b, Int)) {
                 if (b & DialogButton.OK == DialogButton.OK) {
@@ -246,13 +274,11 @@ class Screen extends ScreenBase {
         }
 
         var x = dialog.left;
-        var y = height;
-
         var vars:Map<String, Float> = [
             "startLeft" => dialog.left,
             "startTop" => dialog.top,
             "endLeft" => x,
-            "endTop" => y
+            "endTop" => dialog.top - 20
         ];
         AnimationManager.instance.run("haxe.ui.components.animation.dialog.hide", ["target" => dialog], vars, function() {
             Screen.instance.removeComponent(entry.dialog);

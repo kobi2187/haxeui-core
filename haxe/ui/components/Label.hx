@@ -2,7 +2,7 @@ package haxe.ui.components;
 
 import haxe.ui.components.Label.LabelLayout;
 import haxe.ui.core.Behaviour;
-import haxe.ui.core.IClonable;
+import haxe.ui.core.Component;
 import haxe.ui.core.InteractiveComponent;
 import haxe.ui.layouts.DefaultLayout;
 import haxe.ui.styles.Style;
@@ -12,11 +12,11 @@ import haxe.ui.util.Variant;
 /**
  A general purpose component to display text
 **/
-@:dox(icon="/icons/ui-label.png")
-class Label extends InteractiveComponent implements IClonable<Label> {
+@:dox(icon = "/icons/ui-label.png")
+class Label extends Component {
     public function new() {
         super();
-        #if openfl
+        #if (openfl && !flixel)
         mouseChildren = false;
         #end
     }
@@ -24,14 +24,15 @@ class Label extends InteractiveComponent implements IClonable<Label> {
     //***********************************************************************************************************
     // Internals
     //***********************************************************************************************************
-    private override function createDefaults():Void {
-        _defaultBehaviours = [
+    private override function createDefaults() {
+        super.createDefaults();
+        defaultBehaviours([
             "text" => new LabelDefaultTextBehaviour(this)
-        ];
+        ]);
         _defaultLayout = new LabelLayout();
     }
 
-    private override function create():Void {
+    private override function create() {
         super.create();
         behaviourSet("text", _text);
     }
@@ -51,7 +52,7 @@ class Label extends InteractiveComponent implements IClonable<Label> {
         return value;
     }
 
-    private override function applyStyle(style:Style):Void {
+    private override function applyStyle(style:Style) {
         super.applyStyle(style);
         if (hasTextDisplay() == true) {
             if (style.color != null) {
@@ -63,6 +64,9 @@ class Label extends InteractiveComponent implements IClonable<Label> {
             if (style.fontSize != null) {
                 getTextDisplay().fontSize = style.fontSize;
             }
+            if (style.textAlign != null) {
+                getTextDisplay().textAlign = style.textAlign;
+            }
         }
     }
 }
@@ -73,31 +77,40 @@ class Label extends InteractiveComponent implements IClonable<Label> {
 @:dox(hide)
 @:access(haxe.ui.components.Label)
 class LabelLayout extends DefaultLayout {
-    private override function resizeChildren():Bool {
+    private override function resizeChildren() {
         if (component.autoWidth == false) {
-            component.getTextDisplay().width = component.componentWidth;
-            #if openfl // TODO: make not specific
+            #if !pixijs
+            component.getTextDisplay().width = component.componentWidth - paddingLeft - paddingRight;
+            #end
+
+            #if (openfl && !flixel) // TODO: make not specific
             component.getTextDisplay().multiline = true;
             component.getTextDisplay().wordWrap = true;
             #end
         }
-        return true;
     }
 
-    private override function repositionChildren():Void {
+    private override function repositionChildren() {
         if (component.hasTextDisplay() == true) {
             component.getTextDisplay().left = paddingLeft;
             component.getTextDisplay().top = paddingTop;
         }
     }
 
-    public override function calcAutoSize():Size {
-        var size:Size = super.calcAutoSize();
+    public override function calcAutoSize(exclusions:Array<Component> = null):Size {
+        var size:Size = super.calcAutoSize(exclusions);
         if (component.hasTextDisplay() == true) {
             size.width += component.getTextDisplay().textWidth;
             size.height += component.getTextDisplay().textHeight;
         }
         return size;
+    }
+
+    private function textAlign(child:Component):String {
+        if (child == null || child.style == null || child.style.textAlign == null) {
+            return "left";
+        }
+        return child.style.textAlign;
     }
 }
 

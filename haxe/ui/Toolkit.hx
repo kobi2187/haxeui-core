@@ -1,7 +1,11 @@
 package haxe.ui;
 
+import haxe.ui.components.Button;
+import haxe.ui.components.Image;
+import haxe.ui.components.TextField;
 import haxe.ui.core.Component;
 import haxe.ui.core.ComponentClassMap;
+import haxe.ui.core.IDataComponent;
 import haxe.ui.core.KeyboardEvent;
 import haxe.ui.core.Screen;
 import haxe.ui.focus.FocusManager;
@@ -10,6 +14,9 @@ import haxe.ui.macros.ModuleMacros;
 import haxe.ui.macros.NativeMacros;
 import haxe.ui.parsers.ui.ComponentInfo;
 import haxe.ui.parsers.ui.ComponentParser;
+import haxe.ui.parsers.ui.resolvers.AssetResourceResolver;
+import haxe.ui.parsers.ui.resolvers.ResourceResolver;
+import haxe.ui.scripting.ConditionEvaluator;
 import haxe.ui.styles.Engine;
 import haxe.ui.themes.ThemeManager;
 import haxe.ui.util.GenericConfig;
@@ -69,7 +76,12 @@ class Toolkit {
         return Screen.instance;
     }
 
-    public static function componentFromString(data:String, type:String = null):Component {
+    public static function componentFromAsset(assetId:String):Component {
+        var data = ToolkitAssets.instance.getText(assetId);
+        return componentFromString(data, null, new AssetResourceResolver(assetId));
+    }
+
+    public static function componentFromString(data:String, type:String = null, resourceResolver:ResourceResolver = null):Component {
         if (data == null || data.length == 0) {
             return null;
         }
@@ -86,7 +98,7 @@ class Toolkit {
             return null;
         }
 
-        var c:ComponentInfo = parser.parse(data);
+        var c:ComponentInfo = parser.parse(data, resourceResolver);
         var component = buildComponentFromInfo(c);
 
         var fullScript = "";
@@ -100,7 +112,11 @@ class Toolkit {
     }
 
     private static function buildComponentFromInfo(c:ComponentInfo):Component {
-        var className:String = ComponentClassMap.get(c.type);
+        if (c.condition != null && new ConditionEvaluator().evaluate(c.condition) == false) {
+            return null;
+        }
+
+        var className:String = ComponentClassMap.get(c.type.toLowerCase());
         if (className == null) {
             trace("WARNING: no class found for component: " + c.type);
             return null;
@@ -122,12 +138,29 @@ class Toolkit {
         if (c.text != null)             component.text = c.text;
         if (c.styleNames != null)       component.styleNames = c.styleNames;
         if (c.style != null)            component.styleString = c.style;
+
+        if (Std.is(component, haxe.ui.containers.ScrollView)) { // special properties for scrollview and derived classes
+            var scrollview:haxe.ui.containers.ScrollView = cast(component, haxe.ui.containers.ScrollView);
+            if (c.contentWidth != null)             scrollview.contentWidth = c.contentWidth;
+            if (c.contentHeight != null)            scrollview.contentHeight = c.contentHeight;
+            if (c.percentContentWidth != null)      scrollview.percentContentWidth = c.percentContentWidth;
+            if (c.percentContentHeight != null)     scrollview.percentContentHeight = c.percentContentHeight;
+            if (c.layoutName != null)               scrollview.layoutName = c.layoutName;
+        }
+
         for (propName in c.properties.keys()) {
             var propValue:Dynamic = c.properties.get(propName);
             if (StringTools.startsWith(propName, "on")) {
                 component.addScriptEvent(propName, propValue);
             } else {
                 if (Reflect.hasField(component, propName) == false) {
+                    if (Std.is(component, Image) && propName == "resource") {
+                        cast(component, Image).resource = propValue;
+                    } else if (Std.is(component, Button) && propName == "icon") {
+                        cast(component, Button).icon = propValue;
+                    } else if (Std.is(component, TextField) && propName == "password") {
+                        cast(component, TextField).password = propValue;
+                    }
                     continue;
                 }
 
@@ -141,6 +174,10 @@ class Toolkit {
             }
         }
 
+        if (Std.is(component, IDataComponent) && c.data != null) {
+            cast(component, IDataComponent).dataSource = new haxe.ui.data.DataSourceFactory<Dynamic>().fromString(c.dataString, haxe.ui.data.ArrayDataSource);
+        }
+
         for (childInfo in c.children) {
             var childComponent = buildComponentFromInfo(childInfo);
             if (childComponent != null) {
@@ -149,5 +186,82 @@ class Toolkit {
         }
 
         return component;
+    }
+
+    public static var pixelsPerRem(default, set):Int = 16;
+    private static function set_pixelsPerRem(value:Int):Int {
+        if (pixelsPerRem == value) {
+            return value;
+        }
+
+        pixelsPerRem = value;
+        Screen.instance.refreshStyleRootComponents();
+
+        return value;
+    }
+
+    public static var autoScale:Bool = true;
+    public static var autoScaleDPIThreshold:Int = 160;
+
+    private static var _scaleX:Float = 0;
+    public static var scaleX(get, set):Float;
+    private static function get_scaleX():Float {
+        if (_scaleX == 0) {
+            if (autoScale == true) {
+                var dpi:Float = Screen.instance.dpi;
+                if (dpi > autoScaleDPIThreshold) {
+                    _scaleX = Math.fround(dpi / autoScaleDPIThreshold);
+                } else {
+                    _scaleX = 1;
+                }
+            } else {
+                _scaleX = 1;
+            }
+        }
+        return _scaleX;
+    }
+    private static function set_scaleX(value:Float):Float {
+        if (_scaleX == value) {
+            return value;
+        }
+        _scaleX = Math.fround(value);
+        autoScale = false;
+        return value;
+    }
+
+    private static var _scaleY:Float = 0;
+    public static var scaleY(get, set):Float;
+    private static function get_scaleY():Float {
+        if (_scaleY == 0) {
+            if (autoScale == true) {
+                var dpi:Float = Screen.instance.dpi;
+                if (dpi > autoScaleDPIThreshold) {
+                    _scaleY = Math.fround(dpi / autoScaleDPIThreshold);
+                } else {
+                    _scaleY = 1;
+                }
+            } else {
+                _scaleY = 1;
+            }
+        }
+        return _scaleY;
+    }
+    private static function set_scaleY(value:Float):Float {
+        if (_scaleY == value) {
+            return value;
+        }
+        _scaleY = Math.fround(value);
+        autoScale = false;
+        return value;
+    }
+
+    public static var scale(get, set):Float;
+    private static function get_scale():Float {
+        return Math.max(scaleX, scaleY);
+    }
+    private static function set_scale(value:Float):Float {
+        scaleX = value;
+        scaleY = value;
+        return value;
     }
 }

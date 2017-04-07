@@ -3,13 +3,12 @@ package haxe.ui.components;
 import haxe.ui.core.Component;
 import haxe.ui.core.MouseEvent;
 import haxe.ui.layouts.DefaultLayout;
-import haxe.ui.core.IClonable;
 
 /**
  A vertical implementation of a `Slider`
 **/
-@:dox(icon="/icons/ui-slider-vertical-050.png")
-class VSlider extends Slider implements IClonable<VSlider> {
+@:dox(icon = "/icons/ui-slider-vertical-050.png")
+class VSlider extends Slider {
     public function new() {
         super();
     }
@@ -17,12 +16,12 @@ class VSlider extends Slider implements IClonable<VSlider> {
     //***********************************************************************************************************
     // Internals
     //***********************************************************************************************************
-    private override function createDefaults():Void {
+    private override function createDefaults() {
         super.createDefaults();
         _defaultLayout = new VSliderLayout();
     }
 
-    private override function createChildren():Void {
+    private override function createChildren() {
         super.createChildren();
         if (componentWidth <= 0) {
             componentWidth = 20;
@@ -59,7 +58,11 @@ class VSlider extends Slider implements IClonable<VSlider> {
                 _activeThumb = _rangeEndThumb;
                 var ypos:Float = event.screenY - _valueBackground.screenTop - (_activeThumb.componentHeight / 2) - _valueBackground.paddingBottom;
                 //pos = calcPosFromCoord(ypos);
-                animatePos(calcPosFromCoord(ypos));
+                animatePos(calcPosFromCoord(ypos), function() {
+                    if (_activeThumb != null) {
+                        _mouseDownOffset = (_activeThumb.componentWidth / 2) + _valueBackground.paddingBottom;
+                    }
+                });
                 _onRangeEndThumbMouseDown(event);
             }
         }
@@ -73,7 +76,11 @@ class VSlider extends Slider implements IClonable<VSlider> {
             _activeThumb = _rangeEndThumb;
             var ypos:Float = event.screenY - _valueBackground.screenTop - (_activeThumb.componentHeight / 2) - _valueBackground.paddingBottom;
             //pos = calcPosFromCoord(ypos);
-            animatePos(calcPosFromCoord(ypos));
+            animatePos(calcPosFromCoord(ypos), function() {
+                if (_activeThumb != null) {
+                    _mouseDownOffset = (_activeThumb.componentWidth / 2) + _valueBackground.paddingBottom;
+                }
+            });
             _onRangeEndThumbMouseDown(event);
         }
     }
@@ -88,7 +95,8 @@ class VSlider extends Slider implements IClonable<VSlider> {
         _mouseDownOffset = event.screenY - _activeThumb.screenTop + _valueBackground.paddingBottom;
     }
 
-    private override function _onScreenMouseMove(event:MouseEvent):Void {
+    private override function _onScreenMouseMove(event:MouseEvent) {
+        super._onScreenMouseMove(event);
         if (_mouseDownOffset == -1) {
             return;
         }
@@ -151,7 +159,7 @@ class VSliderLayout extends DefaultLayout {
         super();
     }
 
-    public override function resizeChildren():Bool {
+    public override function resizeChildren() {
         super.resizeChildren();
 
         var background:Component = component.findComponent("slider-value-background");
@@ -190,10 +198,9 @@ class VSliderLayout extends DefaultLayout {
                 }
             }
         }
-        return true;
     }
 
-    public override function repositionChildren():Void {
+    public override function repositionChildren() {
         super.repositionChildren();
 
         var background:Component = component.findComponent("slider-value-background");
@@ -219,7 +226,7 @@ class VSliderLayout extends DefaultLayout {
             }
             */
 
-            value.top = y;// + background.layout.paddingBottom;// - (rangeEndButton.componentHeight / 2) + background.layout.paddingTop;
+            value.top = y; // + background.layout.paddingBottom; // - (rangeEndButton.componentHeight / 2) + background.layout.paddingTop;
 
             if (rangeStartButton != null) {
                 rangeStartButton.top = y + paddingTop + value.componentHeight - (rangeStartButton.componentHeight / 2);
@@ -228,7 +235,5 @@ class VSliderLayout extends DefaultLayout {
                 rangeEndButton.top = paddingTop + value.top - (rangeEndButton.componentHeight / 2);
             }
         }
-
     }
 }
-

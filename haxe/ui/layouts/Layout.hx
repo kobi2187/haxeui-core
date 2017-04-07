@@ -1,9 +1,7 @@
 package haxe.ui.layouts;
 
-import haxe.ui.containers.ScrollView;
 import haxe.ui.core.Component;
 import haxe.ui.util.Size;
-import haxe.ui.util.CallStackHelper;
 
 class Layout implements ILayout {
     public function new() {
@@ -22,7 +20,7 @@ class Layout implements ILayout {
     }
 
     @:access(haxe.ui.core.Component)
-    public function refresh():Void {
+    public function refresh() {
         if (_component != null && _component.isReady == true) {
 
             resizeChildren();
@@ -105,10 +103,7 @@ class Layout implements ILayout {
         if (c == null) {
             c = component;
         }
-        if (c.style.hidden == null) {
-            return false;
-        }
-        return c.style.hidden;
+        return c.hidden;
     }
 
     private function horizontalAlign(child:Component):String {
@@ -175,6 +170,7 @@ class Layout implements ILayout {
         }
         return _component.style.verticalSpacing;
     }
+
     //******************************************************************************************
     // Helpers
     //******************************************************************************************
@@ -195,14 +191,17 @@ class Layout implements ILayout {
             return 0;
         }
         var padding:Float = 0;
-        if (component.style.paddingTop != null) padding += component.style.paddingTop;
-        if (component.style.paddingBottom != null) padding += component.style.paddingBottom;
+        if (component.style.paddingTop != null) {
+            padding = component.style.paddingTop + padding;
+        }
+        if (component.style.paddingBottom != null) {
+            padding = component.style.paddingBottom + padding;
+        }
         var icy:Float = component.componentHeight - padding;
         return icy;
     }
 
-    private function resizeChildren():Bool {
-        return true;
+    private function resizeChildren() {
     }
 
     private function repositionChildren() {
@@ -243,16 +242,15 @@ class Layout implements ILayout {
         return calcAutoSize().height;
     }
 
-    public function calcAutoSize():Size {
+    public function calcAutoSize(exclusions:Array<Component> = null):Size {
         var x1:Float = 0xFFFFFF;
         var x2:Float = 0;
         var y1:Float = 0xFFFFFF;
         var y2:Float = 0;
         for (child in component.childComponents) {
-            if (child.includeInLayout == false) {
+            if (child.includeInLayout == false || excluded(exclusions, child) == true) {
                 continue;
             }
-
 
             if (child.percentWidth == null) {
                 if (child.left < x1) {
@@ -283,5 +281,12 @@ class Layout implements ILayout {
         var w:Float = (x2 - x1) + (paddingLeft + paddingRight);
         var h:Float = (y2 - y1) + (paddingTop + paddingBottom);
         return new Size(w, h);
+    }
+
+    private function excluded(exclusions:Array<Component>, child:Component):Bool {
+        if (exclusions == null) {
+            return false;
+        }
+        return exclusions.indexOf(child) != -1;
     }
 }

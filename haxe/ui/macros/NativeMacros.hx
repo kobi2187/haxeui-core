@@ -1,21 +1,16 @@
 package haxe.ui.macros;
 
 import haxe.ui.parsers.config.ConfigParser;
-import haxe.ui.parsers.modules.Module;
-import haxe.ui.parsers.modules.ModuleParser;
 import haxe.ui.util.GenericConfig;
 
 #if macro
 import haxe.macro.Expr;
 import haxe.macro.Context;
-import haxe.rtti.Meta;
-import sys.FileSystem;
 import sys.io.File;
-import haxe.macro.Compiler;
 #end
 
 class NativeMacros {
-    private static var _nativeProcessed:Bool = false;
+    private static var _nativeProcessed:Bool;
     macro public static function processNative():Expr {
         if (_nativeProcessed == true) {
             return macro null;
@@ -45,9 +40,14 @@ class NativeMacros {
         MacroHelpers.scanClassPath(function(filePath:String) {
             var parser:ConfigParser = ConfigParser.get(MacroHelpers.extension(filePath));
             if (parser != null) {
-                var config:GenericConfig = parser.parse(File.getContent(filePath));
-                _nativeConfigs.push(config);
-                return true;
+                try {
+                    var config:GenericConfig = parser.parse(File.getContent(filePath));
+                    _nativeConfigs.push(config);
+                    return true;
+                } catch (e:Dynamic) {
+                    trace('WARNING: Problem parsing native ${MacroHelpers.extension(filePath)} (${filePath}) - ${e} (skipping file)');
+                    return false;
+                }
             }
 
             return false;

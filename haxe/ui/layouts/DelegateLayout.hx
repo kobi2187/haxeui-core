@@ -3,7 +3,7 @@ package haxe.ui.layouts;
 import haxe.ui.core.Component;
 import haxe.ui.util.Size;
 
-class DelegateLayout extends VerticalLayout {
+class DelegateLayout extends DefaultLayout {
     private var _size:DelegateLayoutSize;
 
     public function new(size:DelegateLayoutSize) {
@@ -11,7 +11,7 @@ class DelegateLayout extends VerticalLayout {
         _size = size;
     }
 
-    public override function calcAutoSize():Size {
+    public override function calcAutoSize(exclusions:Array<Component> = null):Size {
         _size.component = component;
 
         var cx:Float = _size.width;
@@ -20,7 +20,6 @@ class DelegateLayout extends VerticalLayout {
             cx += (paddingLeft + paddingRight);
             cy += (paddingTop + paddingBottom);
         }
-
 
         var size:Size = new Size(cx, cy);
         return size;
@@ -36,6 +35,9 @@ class DelegateLayout extends VerticalLayout {
 }
 
 class DelegateLayoutSize {
+    public function new() {
+    }
+    
     public var component:Component;
     public var config:Map<String, String>;
 

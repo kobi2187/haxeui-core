@@ -1,15 +1,14 @@
 package haxe.ui.containers;
 
+import haxe.ui.core.Component;
 import haxe.ui.layouts.DefaultLayout;
-import haxe.ui.layouts.VerticalLayout;
-import haxe.ui.core.IClonable;
 
 /**
  Base `Layout` that allows a container to specify an `icon`. How that icon resource is used depends on subclasses, like
  `haxe.ui.containers.TabView`
 **/
-@:dox(icon="/icons/ui-panel.png")
-class Box extends haxe.ui.core.Component implements IClonable<Box> {
+@:dox(icon = "/icons/ui-panel.png")
+class Box extends Component {
     public function new() {
         super();
         layout = new DefaultLayout();

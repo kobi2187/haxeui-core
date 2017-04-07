@@ -3,7 +3,6 @@ package haxe.ui.components;
 import haxe.ui.animation.AnimationManager;
 import haxe.ui.core.Behaviour;
 import haxe.ui.core.Component;
-import haxe.ui.core.IClonable;
 import haxe.ui.core.InteractiveComponent;
 import haxe.ui.core.UIEvent;
 import haxe.ui.util.Variant;
@@ -11,8 +10,8 @@ import haxe.ui.util.Variant;
 /**
  Encapsulates shared functionality of both vertical and horizontal progressbar components
 **/
-@:dox(icon="/icons/ui-progress-bar.png")
-class Progress extends InteractiveComponent implements IClonable<Progress> {
+@:dox(icon = "/icons/ui-progress-bar.png")
+class Progress extends InteractiveComponent {
     private var _value:Component;
 
     public function new() {
@@ -25,18 +24,19 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
     //***********************************************************************************************************
     // Internals
     //***********************************************************************************************************
-    private override function createDefaults():Void {
-        _defaultBehaviours = [
+    private override function createDefaults() {
+        super.createDefaults();
+        defaultBehaviours([
             "min" => new ProgressDefaultMinBehaviour(this),
             "max" => new ProgressDefaultMaxBehaviour(this),
             "pos" => new ProgressDefaultPosBehaviour(this),
             "rangeStart" => new ProgressDefaultRangeStartBehaviour(this),
             "rangeEnd" => new ProgressDefaultRangeEndBehaviour(this),
             "indeterminate" => new ProgressDefaultIndeterminateBehaviour(this)
-        ];
+        ]);
     }
 
-    private override function create():Void {
+    private override function create() {
         super.create();
 
         behaviourSet("min", _min);
@@ -45,7 +45,7 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
         behaviourSet("indeterminate", _indeterminate);
     }
 
-    private override function createChildren():Void {
+    private override function createChildren() {
         if (_value == null) {
             _value = new Component();
             _value.id = "progress-value";
@@ -57,7 +57,7 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
         }
     }
 
-    private override function destroyChildren():Void {
+    private override function destroyChildren() {
         if (_value != null) {
             removeComponent(_value);
             _value = null;
@@ -83,7 +83,7 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
     /**
      The current value of the progressbar
     **/
-    @:dox(group="Value related properties and methods")
+    @:dox(group = "Value related properties and methods")
     @bindable @clonable public var pos(get, set):Float;
     private function get_pos():Float {
         return _pos;
@@ -114,17 +114,12 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
     /**
      The minimum value the progress can hold
     **/
-    @:dox(group="Value related properties and methods")
+    @:dox(group = "Value related properties and methods")
     @bindable @clonable public var min(get, set):Float;
     private function get_min():Float {
         return _min;
     }
     private function set_min(value:Float):Float {
-        if (_ready) {
-            if (value < _min) {
-                value = _min;
-            }
-        }
         if (value == _min) {
             return value;
         }
@@ -138,17 +133,12 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
     /**
      The maximum value the progress can hold
     **/
-    @:dox(group="Value related properties and methods")
+    @:dox(group = "Value related properties and methods")
     @bindable @clonable public var max(get, set):Float;
     private function get_max():Float {
         return _max;
     }
     private function set_max(value:Float):Float {
-        if (_ready) {
-            if (value > _max) {
-                value = _max;
-            }
-        }
         if (value == _max) {
             return value;
         }
@@ -162,7 +152,7 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
     /**
      The start of the progressbars range value
     **/
-    @:dox(group="Range related properties and methods")
+    @:dox(group = "Range related properties and methods")
     @bindable @clonable public var rangeStart(get, set):Float;
     private function get_rangeStart():Float {
         return _rangeStart;
@@ -186,7 +176,7 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
     /**
      The end of the progressbars range value
     **/
-    @:dox(group="Range related properties and methods")
+    @:dox(group = "Range related properties and methods")
     @bindable @clonable public var rangeEnd(get, set):Float;
     private function get_rangeEnd():Float {
         return _rangeEnd;
@@ -210,7 +200,7 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
     /**
      Whether to show this progress bar as an animated "indeterminate" progressbar
     **/
-    @:dox(group="Indeterminate mode related properties")
+    @:dox(group = "Indeterminate mode related properties")
     @bindable @clonable public var indeterminate(get, set):Bool;
     private function get_indeterminate():Bool {
         return _indeterminate;
@@ -226,7 +216,7 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
         return value;
     }
 
-    private function startIndeterminateAnimation():Void {
+    private function startIndeterminateAnimation() {
         var animationId:String = getClassProperty("animation.indeterminate");
         if (animationId == null) {
             return;
@@ -234,7 +224,7 @@ class Progress extends InteractiveComponent implements IClonable<Progress> {
         AnimationManager.instance.loop(animationId, ["target" => this]);
     }
 
-    private function stopIndeterminateAnimation():Void {
+    private function stopIndeterminateAnimation() {
 
     }
 }

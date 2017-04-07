@@ -5,9 +5,6 @@ import haxe.ui.util.Properties;
 #if macro
 import haxe.macro.Expr;
 import haxe.macro.Context;
-import sys.FileSystem;
-import sys.io.File;
-import haxe.macro.Compiler;
 #end
 
 class BackendMacros {
@@ -25,7 +22,7 @@ class BackendMacros {
 
     #if macro
 
-    macro private static function loadBackendProperties():Expr {
+    private static function loadBackendProperties():Expr {
         var searchCriteria:Array<String> = [];
         for (k in Context.getDefines().keys()) {
             if (StringTools.startsWith(k, "haxeui-")) {

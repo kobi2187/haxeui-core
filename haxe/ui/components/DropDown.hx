@@ -1,14 +1,20 @@
 package haxe.ui.components;
+
 import haxe.ui.containers.ListView;
+import haxe.ui.core.BasicItemRenderer;
+import haxe.ui.core.Behaviour;
 import haxe.ui.core.Component;
-import haxe.ui.core.IClonable;
 import haxe.ui.core.IDataComponent;
 import haxe.ui.core.ItemRenderer;
 import haxe.ui.core.MouseEvent;
 import haxe.ui.core.Screen;
 import haxe.ui.core.UIEvent;
+import haxe.ui.data.DataSource;
+import haxe.ui.util.Variant;
 
-class DropDown extends Button implements IDataComponent implements IClonable<DropDown> {
+class DropDown extends Button implements IDataComponent {
+    static private inline var NO_SELECTION:Int = -1;
+
     private var _listview:ListView;
     private var _itemRenderer:ItemRenderer;
 
@@ -19,13 +25,99 @@ class DropDown extends Button implements IDataComponent implements IClonable<Dro
         registerEvent(MouseEvent.CLICK, onMouseClick);
     }
 
-    private var _data:Dynamic;
-    public var data(get, set):Dynamic;
-    private function get_data():Dynamic {
-        return null;
+    private override function createDefaults() {
+        super.createDefaults();
+        defaultBehaviours([
+            "dataSource" => new DropDownDefaultDataSourceBehaviour(this),
+            "selectedItem" => new DropDownDefaultSelectedItemBehaviour(this)
+        ]);
     }
-    private function set_data(value:Dynamic):Dynamic {
-        _data = value;
+
+    private override function create() {
+        super.create();
+    }
+
+    private override function createChildren() {
+        super.createChildren();
+    }
+
+    private override function destroyChildren() {
+        super.destroyChildren();
+        unregisterEvent(MouseEvent.CLICK, onMouseClick);
+    }
+
+    private override function onReady() {
+        super.onReady();
+        if (_itemRenderer == null) {
+            addComponent(new BasicItemRenderer());
+        }
+    }
+
+    private var _dataSource:DataSource<Dynamic>;
+    public var dataSource(get, set):DataSource<Dynamic>;
+    private function get_dataSource():DataSource<Dynamic> {
+        return _dataSource;
+    }
+    private function set_dataSource(value:DataSource<Dynamic>):DataSource<Dynamic> {
+        _dataSource = value;
+        if (_listview != null) {
+            _listview.dataSource = value;
+        }
+        //behaviourSet("dataSource", Variant.fromDynamic(value));
+        behaviourSet("dataSource", value);
+
+        if(_requireSelection == true && _dataSource != null && _selectedIndex < 0) {
+            selectedIndex = 0;
+        }
+
+        return value;
+    }
+
+    private var _selectedIndex:Int = NO_SELECTION;
+    @bindable public var selectedIndex(get, set):Int;
+    private function get_selectedIndex():Int {
+        return _selectedIndex;
+    }
+    private function set_selectedIndex(value:Int):Int {
+        if(_dataSource == null || value >= _dataSource.size) {
+            return value;
+        }
+
+        if(_selectedIndex == value) {
+            return value;
+        }
+
+        _selectedIndex = value;
+
+        if(_dataSource != null) {
+            if(_requireSelection == true && _selectedIndex < 0 && _dataSource.size > 0) {
+                _selectedIndex = 0;
+            }
+
+            if(_selectedIndex >= 0) {
+                text = _dataSource.get(_selectedIndex).value;
+            }
+        }
+        else {
+            text = null;
+        }
+
+        return _selectedIndex;
+    }
+
+    private var _requireSelection:Bool = false;
+    public var requireSelection(get, set):Bool;
+    private function get_requireSelection():Bool {
+        return _requireSelection;
+    }
+    private function set_requireSelection(value:Bool):Bool {
+        if(_requireSelection != value) {
+            _requireSelection = value;
+            if(_requireSelection == true && _dataSource != null && _selectedIndex < 0) {
+                selectedIndex = 0;
+            }
+        }
+
         return value;
     }
 
@@ -81,8 +173,12 @@ class DropDown extends Button implements IDataComponent implements IClonable<Dro
         }
         return r;
     }
-    
+
     private function onMouseClick(event:MouseEvent) {
+        if (native == true) {
+            return;
+        }
+
         if (selected == true) {
             if (_listview == null) {
                 _listview = new ListView();
@@ -95,8 +191,8 @@ class DropDown extends Button implements IDataComponent implements IClonable<Dro
                         _listview.addClass(s);
                     }
                 }
-                if (_data != null) {
-                    _listview.data = _data;
+                if (_dataSource != null) {
+                    _listview.dataSource = _dataSource;
                 }
                 _listview.registerEvent(UIEvent.CHANGE, onItemChange);
             }
@@ -120,6 +216,10 @@ class DropDown extends Button implements IDataComponent implements IClonable<Dro
             }
             _listview.height = listHeight;
 
+            if (_listview.screenTop + _listview.height > Screen.instance.height) {
+                _listview.top = this.screenTop - _listview.height;
+            }
+
             Screen.instance.registerEvent(MouseEvent.MOUSE_DOWN, onScreenMouseDown);
         } else {
             if (_listview != null) {
@@ -129,12 +229,18 @@ class DropDown extends Button implements IDataComponent implements IClonable<Dro
         }
     }
 
+    public var selectedItem(get, null):Dynamic;
+    private function get_selectedItem():Dynamic {
+        return behaviourGetDynamic("selectedItem");
+    }
+
     private function onItemChange(event:UIEvent) {
-        if (_listview.selectedItem.data.text != null) {
-            this.text = _listview.selectedItem.data.text;
+        if (_listview.selectedItem.data.value != null) {
+            selectedIndex = _dataSource.indexOf(_listview.selectedItem.data);
         }
         selected = false;
         onMouseClick(null);
+        dispatch(new UIEvent(UIEvent.CHANGE));
     }
 
     private function onScreenMouseDown(event:MouseEvent) {
@@ -148,5 +254,36 @@ class DropDown extends Button implements IDataComponent implements IClonable<Dro
         onMouseClick(null);
     }
 
+    //***********************************************************************************************************
+    // Clonable
+    //***********************************************************************************************************
+    public override function cloneComponent():DropDown {
+        if (_dataSource != null) {
+            c.dataSource = _dataSource.clone();
+        }
+    }
 }
 
+//***********************************************************************************************************
+// Default behaviours
+//***********************************************************************************************************
+
+@:dox(hide)
+class DropDownDefaultDataSourceBehaviour extends Behaviour {
+    public override function set(value:Variant) {
+
+    }
+}
+
+@:dox(hide)
+@:access(haxe.ui.components.DropDown)
+class DropDownDefaultSelectedItemBehaviour extends Behaviour {
+    public override function getDynamic():Dynamic {
+        var dropDown:DropDown = cast(_component, DropDown);
+        var lv:ListView = dropDown._listview;
+        if (dropDown.dataSource == null || dropDown._selectedIndex == DropDown.NO_SELECTION) {
+            return null;
+        }
+        return dropDown.dataSource.get(dropDown._selectedIndex);
+    }
+}

@@ -1,14 +1,8 @@
 package haxe.ui.macros;
 
-import haxe.macro.ExprTools;
-import haxe.ui.util.StringUtil;
-
 #if macro
 import haxe.macro.Expr;
 import haxe.macro.Context;
-import haxe.rtti.Meta;
-import sys.FileSystem;
-import sys.io.File;
 #end
 
 class Macros {
@@ -21,7 +15,6 @@ class Macros {
     macro public static function buildBindings():Array<Field> {
         var pos = Context.currentPos();
         var fields = Context.getBuildFields();
-
 
         var bindableFields:Array<Field> = getFieldsWithMeta("bindable", fields);
         if (bindableFields.length != 0) {
@@ -87,14 +80,18 @@ class Macros {
 
             if (useSelf == false) {
                 code += "var c:" + className + " = cast super.cloneComponent();\n";
+                for (f in getFieldsWithMeta("clonable", fields)) {
+                    code += "c." + f.name + " = this." + f.name + ";\n";
+                }
+
             } else {
                 code += "var c:" + className + " = self();\n";
+                for (f in getFieldsWithMeta("clonable", fields)) {
+                    code += "c." + f.name + " = this." + f.name + ";\n";
+                }
+
                 code += "if (this.childComponents.length != c.childComponents.length) for (child in this.childComponents) c.addComponent(child.cloneComponent());\n";
             }
-            for (f in getFieldsWithMeta("clonable", fields)) {
-                code += "c." + f.name + " = this." + f.name + ";\n";
-            }
-
             code += "return c;\n";
             code += "}\n";
 
@@ -115,13 +112,14 @@ class Macros {
             }
 
             insertLine(currentCloneFn, Context.parseInlineString(code, pos), n++);
-            if (useSelf == true) {
-                insertLine(currentCloneFn, Context.parseInlineString("if (this.childComponents.length != c.childComponents.length) for (child in this.childComponents) c.addComponent(child.cloneComponent())", pos), n++);
-            }
 
             for (f in getFieldsWithMeta("clonable", fields)) {
                 code = "c." + f.name + " = this." + f.name + "";
                 insertLine(currentCloneFn, Context.parseInlineString(code, pos), n++);
+            }
+
+            if (useSelf == true) {
+                insertLine(currentCloneFn, Context.parseInlineString("if (this.childComponents.length != c.childComponents.length) for (child in this.childComponents) c.addComponent(child.cloneComponent())", pos), n++);
             }
 
             insertLine(currentCloneFn, Context.parseInlineString("return c", pos), -1);
@@ -425,7 +423,7 @@ class Macros {
                     if (type.params != null && type.params.length == 1) {
                         switch (type.params[0]) {
                             case TPType(p):
-                                switch(p) {
+                                switch (p) {
                                     case TPath(tp):
                                         subType = tp.name;
                                     case _:
@@ -469,7 +467,7 @@ class Macros {
                     defaultValue = false;
                 }
                 if (defaultValue != null || subType != null) {
-                    code += "if (style == null || style." + name + " == null) {\n return " + defaultValue + ";\n }\n" ;
+                    code += "if (style == null || style." + name + " == null) {\n return " + defaultValue + ";\n }\n";
                 }
                 code += "return style." + name + ";\n";
             } else {
@@ -477,7 +475,7 @@ class Macros {
             }
             code += "}";
             var fnGetter = switch (Context.parseInlineString(code, haxe.macro.Context.currentPos()) ).expr {
-                case EFunction(_,f): f;
+                case EFunction(_, f): f;
                 case _: throw "false";
             }
             fields.push({
@@ -503,7 +501,7 @@ class Macros {
             code += "}";
 
             var fnSetter = switch (Context.parseInlineString(code, haxe.macro.Context.currentPos()) ).expr {
-                case EFunction(_,f): f;
+                case EFunction(_, f): f;
                 case _: throw "false";
             }
             fields.push({
@@ -521,7 +519,7 @@ class Macros {
     }
 
     private static function insertLine(fn:{ expr : { pos : haxe.macro.Position, expr : haxe.macro.ExprDef } }, e:Expr, location:Int):Void {
-        fn.expr = switch(fn.expr.expr) {
+        fn.expr = switch (fn.expr.expr) {
             case EBlock(el): macro $b{insertExpr(el, location, e)};
             case _: macro $b { insertExpr([fn.expr], location, e) }
         }
@@ -538,7 +536,7 @@ class Macros {
 
     private static function addFunction(name:String, e:Expr, access:Array<Access>, fields:Array<Field>, pos:Position):Void {
         var fn = switch (e).expr {
-            case EFunction(_,f): f;
+            case EFunction(_, f): f;
             case _: throw "false";
         }
         fields.push( { name : name, doc : null, meta : [], access : access, kind : FFun(fn), pos : pos } );
@@ -586,11 +584,6 @@ class Macros {
     private static function hasInterface(t:haxe.macro.Type, interfaceRequired:String):Bool {
         var has:Bool = false;
         switch (t) {
-                case TAnonymous(t): {};
-                case TMono(t): {};
-                case TLazy(t): {};
-                case TFun(t, _): {};
-                case TDynamic(t): {};
                 case TInst(t, _): {
                     while (t != null) {
                         for (i in t.get().interfaces) {
@@ -612,9 +605,7 @@ class Macros {
                         }
                     }
                 }
-                case TEnum(t, _): {};
-                case TType(t, _): {};
-                case TAbstract(t, _): {};
+                case _:
         }
 
         return has;
@@ -637,17 +628,10 @@ class Macros {
     private static function getSuperClass(t:haxe.macro.Type) {
         var superClass = null;
         switch (t) {
-                case TAnonymous(t): {};
-                case TMono(t): {};
-                case TLazy(t): {};
-                case TFun(t, _): {};
-                case TDynamic(t): {};
                 case TInst(t, _): {
                     superClass = t.get().superClass;
                 }
-                case TEnum(t, _): {};
-                case TType(t, _): {};
-                case TAbstract(t, _): {};
+                case _:
         }
         return superClass;
     }
@@ -704,4 +688,3 @@ class Macros {
     */
     #end
 }
-

@@ -10,7 +10,7 @@ import haxe.ui.styles.Parser;
 import haxe.ui.styles.Style;
 import haxe.ui.util.CallStackHelper;
 import haxe.ui.util.EventMap;
-import haxe.ui.util.GenericConfig;
+import haxe.ui.util.FunctionArray;
 import haxe.ui.util.Rectangle;
 import haxe.ui.util.Size;
 import haxe.ui.util.StringUtil;
@@ -56,14 +56,11 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         #if html5
         addClass("html5");
         #end
+        addClass(Backend.id);
 
         var parts:Array<String> = Type.getClassName(Type.getClass(this)).split(".");
         var className:String = parts[parts.length - 1].toLowerCase();
         addClass(className, false);
-
-        layout = new DefaultLayout();
-
-        createDefaults();
 
         // we dont want to actually apply the classes, just find out if native is there or not
         var s = Toolkit.styleSheet.applyClasses(this, false);
@@ -77,7 +74,8 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     //***********************************************************************************************************
     // Construction
     //***********************************************************************************************************
-    private function create():Void {
+    private function create() {
+        createDefaults();
         handleCreate(native);
         destroyChildren();
 
@@ -87,15 +85,18 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         }
     }
 
-    private function createDefaults():Void {
+    private function createDefaults() {
+        defaultBehaviours([
+            "disabled" =>  new ComponentDefaultDisabledBehaviour(this)
+        ]);
+        layout = new DefaultLayout();
+    }
+
+    private function createChildren() {
 
     }
 
-    private function createChildren():Void {
-
-    }
-
-    private function destroyChildren():Void {
+    private function destroyChildren() {
 
     }
 
@@ -131,6 +132,15 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     }
 
     private var _defaultBehaviours:Map<String, Behaviour> = new Map<String, Behaviour>();
+    private function defaultBehaviour(name:String, behaviour:Behaviour) {
+        _defaultBehaviours.set(name, behaviour);
+    }
+    private function defaultBehaviours(behaviours:Map<String, Behaviour>) {
+        for (name in behaviours.keys()) {
+            defaultBehaviour(name, behaviours.get(name));
+        }
+    }
+    
     private var _behaviours:Map<String, Behaviour> = new Map<String, Behaviour>();
     private function getBehaviour(id:String):Behaviour {
         var b:Behaviour = _behaviours.get(id);
@@ -161,15 +171,32 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return null;
     }
 
-    private function behaviourSet(id:String, value:Variant):Void {
+    private function behaviourGetDynamic(id:String):Dynamic {
+        var b:Behaviour = getBehaviour(id);
+        if (b != null) {
+            return b.getDynamic();
+        }
+        return null;
+    }
+
+    private function behaviourSet(id:String, value:Variant) {
         var b:Behaviour = getBehaviour(id);
         if (b != null) {
             b.set(value);
         }
     }
 
-    private function behavioursUpdate():Void {
-        for (b in _behaviours) {
+    private var _behaviourUpdateOrder:Array<String> = [];
+    private function behavioursUpdate() {
+        var order:Array<String> = _behaviourUpdateOrder.copy();
+        for (key in _behaviours.keys()) {
+            if (order.indexOf(key) == -1) {
+                order.push(key);
+            }
+        }
+        
+        for (key in order) {
+            var b = _behaviours.get(key);
             if (b != null) {
                 b.update();
             }
@@ -188,7 +215,6 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return _native;
     }
     private function set_native(value:Null<Bool>):Null<Bool> {
-        var className:String = Type.getClassName(Type.getClass(this));
         if (hasNativeEntry == false) {
             return value;
         }
@@ -206,12 +232,13 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         } else {
             removeClass(":native");
         }
+
         _behaviours  = new Map<String, Behaviour>();
         create();
         return value;
     }
 
-    private var _animatable = true;
+    private var _animatable:Bool = true;
     /**
      Whether this component is allowed to animate
     **/
@@ -296,7 +323,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Binds a property of this component to the property of another
     **/
-    @:dox(group="Binding related properties and methods")
+    @:dox(group = "Binding related properties and methods")
     public function addBinding(target:Component, transform:String = null, targetProperty:String = "value", sourceProperty:String = "value") {
         if (_bindings == null) {
             _bindings = new Map<String, Array<BindingInfo>>();
@@ -304,7 +331,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
 
         var array:Array<BindingInfo> = _bindings.get(sourceProperty);
         if (array == null) {
-            array = new Array<BindingInfo>();
+            array = [];
             _bindings.set(sourceProperty, array);
         }
 
@@ -320,10 +347,10 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Binds a property of this component to the property of another that may or may not current exist in the component tree
     **/
-    @:dox(group="Binding related properties and methods")
+    @:dox(group = "Binding related properties and methods")
     public function addDeferredBinding(targetId:String, sourceId:String, transform:String = null, targetProperty:String = "value", sourceProperty:String = "value") {
         if (_deferredBindings == null) {
-            _deferredBindings = new Array<DeferredBindingInfo>();
+            _deferredBindings = [];
         }
 
         var deferredBinding:DeferredBindingInfo = new DeferredBindingInfo();
@@ -408,16 +435,16 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     //***********************************************************************************************************
     // Clip rect
     //***********************************************************************************************************
-    private var _clipRect:Rectangle = null;
+    private var _componentClipRect:Rectangle = null;
     /**
      Whether to clip the display of this component
     **/
-    public var clipRect(get, set):Rectangle;
-    private function get_clipRect():Rectangle {
-        return _clipRect;
+    public var componentClipRect(get, set):Rectangle;
+    private function get_componentClipRect():Rectangle {
+        return _componentClipRect;
     }
-    private function set_clipRect(value:Rectangle):Rectangle {
-        _clipRect = value;
+    private function set_componentClipRect(value:Rectangle):Rectangle {
+        _componentClipRect = value;
         handleClipRect(value);
         return value;
     }
@@ -428,7 +455,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      The top level component of this component instance
     **/
-    @:dox(group="Display tree related properties and methods")
+    @:dox(group = "Display tree related properties and methods")
     public var rootComponent(get, never):Component;
     private function get_rootComponent():Component {
         var r = this;
@@ -438,21 +465,19 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return r;
     }
 
-
     private var _children:Array<Component>;
     /**
      The parent component of this component instance
     **/
-    @:dox(group="Display tree related properties and methods")
+    @:dox(group = "Display tree related properties and methods")
     public var parentComponent:Component = null;
 
     /**
      Adds a child component to this component instance
     **/
-    @:dox(group="Display tree related properties and methods")
+    @:dox(group = "Display tree related properties and methods")
     public function addComponent(child:Component):Component {
         if (this.native == true) {
-            var className:String = Type.getClassName(Type.getClass(this));
             var allowChildren:Bool = getNativeConfigPropertyBool('.@allowChildren', true);
             if (allowChildren == false) {
                 return child;
@@ -462,13 +487,13 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         child.parentComponent = this;
 
         if (_children == null) {
-            _children = new Array<Component>();
+            _children = [];
         }
         _children.push(child);
 
         var deferredBindings:Array<DeferredBindingInfo> = getDefferedBindings();
         if (deferredBindings != null) {
-            var itemsToRemove:Array<DeferredBindingInfo> = new Array<DeferredBindingInfo>();
+            var itemsToRemove:Array<DeferredBindingInfo> = [];
             for (binding in deferredBindings) {
                 var source = findComponent(binding.sourceId, null, true);
                 var target = findComponent(binding.targetId, null, true);
@@ -490,27 +515,41 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         }
 
         invalidateLayout();
+        if (_disabled == true) {
+            child.disabled = true;
+        }
         return child;
     }
 
     /**
      Removes the specified child component from this component instance
     **/
-    @:dox(group="Display tree related properties and methods")
+    @:dox(group = "Display tree related properties and methods")
     public function removeComponent(child:Component, dispose:Bool = true, invalidate:Bool = true):Component {
         handleRemoveComponent(child, dispose);
         if (_children != null) {
-            _children.remove(child);
-            invalidateLayout();
+            if (_children.remove(child)) {
+                child.parentComponent = null;
+            }
+            if (invalidate == true) {
+                invalidateLayout();
+            }
+            if (dispose == true) {
+                child.onDestroy();
+            }
         }
 
         return child;
     }
 
+    private function onDestroy() {
+
+    }
+
     /**
      Removes all child components from this component instance
     **/
-    @:dox(group="Display tree related properties and methods")
+    @:dox(group = "Display tree related properties and methods")
     public function removeAllComponents(dispose:Bool = true) {
         if (_children != null) {
             while (_children.length > 0) {
@@ -526,11 +565,11 @@ class Component extends ComponentBase implements IComponentBase implements IClon
 
      _Note_: This function will return an empty array if the component has no children
     **/
-    @:dox(group="Display tree related properties and methods")
+    @:dox(group = "Display tree related properties and methods")
     public var childComponents(get, null):Array<Component>;
     private function get_childComponents():Array<Component> {
         if (_children == null) {
-            return new Array<Component>();
+            return [];
         }
         return _children;
     }
@@ -538,7 +577,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Finds a specific child in this components display tree (recusively if desired) and can optionally cast the result
 
-     - `critera` - The criteria by which to search, the interpretation of this is defined using `searchType` (the default search type is _id_)
+     - `criteria` - The criteria by which to search, the interpretation of this is defined using `searchType` (the default search type is _id_)
 
      - `type` - The component class you wish to cast the result to (defaults to _null_)
 
@@ -550,15 +589,19 @@ class Component extends ComponentBase implements IComponentBase implements IClon
 
             - `css` - The first component that contains a style name specified by `criteria` will be considered a match
     **/
-    @:dox(group="Display tree related properties and methods")
-    public function findComponent<T>(critera:String = null, type:Class<T> = null, recursive:Bool = false, searchType:String = "id"):Null<T> {
+    @:dox(group = "Display tree related properties and methods")
+    public function findComponent<T>(criteria:String = null, type:Class<T> = null, recursive:Null<Bool> = null, searchType:String = "id"):Null<T> {
+        if (recursive == null && criteria != null && searchType == "id") {
+            recursive = true;
+        }
+
         var match:Component = null;
         for (child in childComponents) {
-            if (critera != null) {
-                if (searchType == "id" && child.id == critera) {
+            if (criteria != null) {
+                if (searchType == "id" && child.id == criteria) {
                     match = cast child;
                     break;
-                } else if (searchType == "css" && child.hasClass(critera) == true) {
+                } else if (searchType == "css" && child.hasClass(criteria) == true) {
                     match = cast child;
                     break;
                 }
@@ -571,7 +614,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         }
         if (match == null && recursive == true) {
             for (child in childComponents) {
-                var temp:Component = cast child.findComponent(critera, type, recursive, searchType);
+                var temp:Component = cast child.findComponent(criteria, type, recursive, searchType);
                 if (temp != null) {
                     match = temp;
                     break;
@@ -583,9 +626,61 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     }
 
     /**
+     Finds a specific parent in this components display tree and can optionally cast the result
+
+     - `criteria` - The criteria by which to search, the interpretation of this is defined using `searchType` (the default search type is _id_)
+
+     - `type` - The component class you wish to cast the result to (defaults to _null_)
+
+     - `searchType` - Allows you specify how to consider a parent a match (defaults to _id_), can be either:
+
+            - `id` - The first component that has the id specified in `criteria` will be considered a match
+
+            - `css` - The first component that contains a style name specified by `criteria` will be considered a match
+    **/
+    @:dox(group = "Display tree related properties and methods")
+    public function findAncestor<T>(criteria:String = null, type:Class<T> = null, searchType:String = "id"):Null<T> {
+        var match:Component = null;
+        var p = this.parentComponent;
+        while (p != null) {
+            if (criteria != null) {
+                if (searchType == "id" && p.id == criteria) {
+                    match = cast p;
+                    break;
+                } else if (searchType == "css" && p.hasClass(criteria) == true) {
+                    match = cast p;
+                    break;
+                }
+            } else if (type != null) {
+                if (Std.is(p, type) == true) {
+                    match = cast p;
+                    break;
+                }
+            }
+        }
+        return cast match;
+    }
+    
+    public function findComponentsUnderPoint(screenX:Float, screenY:Float):Array<Component> {
+        var c:Array<Component> = [];
+        if (screenX >= this.screenLeft && screenX <= this.screenLeft + this.width
+            && screenY >= this.screenTop && screenY <= this.screenTop + this.height) {
+            for (child in childComponents) {
+                if (screenX >= child.screenLeft && screenX <= child.screenLeft + child.width
+                    && screenY >= child.screenTop && screenY <= child.screenTop + child.height) {
+                    c.push(child);
+                }
+                
+                c = c.concat(child.findComponentsUnderPoint(screenX, screenY));
+            }
+        }
+        return c;
+    }
+    
+    /**
      Gets the index of a child component
     **/
-    @:dox(group="Display tree related properties and methods")
+    @:dox(group = "Display tree related properties and methods")
     public function getComponentIndex(child:Component):Int {
         var index:Int = -1;
         if (_children != null && child != null) {
@@ -594,10 +689,19 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return index;
     }
 
+    public function setComponentIndex(child:Component, index:Int) {
+        if (index >= 0 && index <= _children.length && child.parentComponent == this) {
+            handleSetComponentIndex(child, index);
+            _children.remove(child);
+            _children.insert(index, child);
+            invalidateLayout();
+        }
+    }
+
     /**
      Gets a child component at a specified index
     **/
-    @:dox(group="Display tree related properties and methods")
+    @:dox(group = "Display tree related properties and methods")
     public function getComponentAt(index:Int):Component {
         if (_children == null) {
             return null;
@@ -605,12 +709,11 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return _children[index];
     }
 
-
     /**
      Hides this component and all its children
     **/
-    @:dox(group="Display tree related properties and methods")
-    public function hide():Void {
+    @:dox(group = "Display tree related properties and methods")
+    public function hide() {
         handleVisibility(false);
         _hidden = true;
         if (parentComponent != null) {
@@ -621,8 +724,8 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Shows this component and all its children
     **/
-    @:dox(group="Display tree related properties and methods")
-    public function show():Void {
+    @:dox(group = "Display tree related properties and methods")
+    public function show() {
         handleVisibility(true);
         _hidden = false;
         if (parentComponent != null) {
@@ -634,7 +737,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Whether this component is hidden or not
     **/
-    @:dox(group="Display tree related properties and methods")
+    @:dox(group = "Display tree related properties and methods")
     public var hidden(get, set):Bool;
     private function get_hidden():Bool {
         if (_hidden == true) {
@@ -657,22 +760,33 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return value;
     }
 
+    private var _disabled:Bool = false;
+    public var disabled(get, set):Bool;
+    private function get_disabled():Bool {
+        return behaviourGet("disabled");
+    }
+    private function set_disabled(value:Bool):Bool {
+        behaviourSet("disabled", value);
+        _disabled = value;
+        return value;
+    }
+    
     //***********************************************************************************************************
     // Style related
     //***********************************************************************************************************
     /**
      A custom style object that will appled to this component after any css rules have been matched and applied
     **/
-    @:dox(group="Style related properties and methods")
+    @:dox(group = "Style related properties and methods")
     public var customStyle:Style = new Style();
     @:dox(group = "Style related properties and methods")
     @:allow(haxe.ui.styles.Engine)
-    private var classes:Array<String> = new Array<String>();
+    private var classes:Array<String> = [];
 
     /**
      Adds a css style name to this component
     **/
-    @:dox(group="Style related properties and methods")
+    @:dox(group = "Style related properties and methods")
     public function addClass(name:String, invalidate:Bool = true) {
         if (classes.indexOf(name) == -1) {
             classes.push(name);
@@ -685,7 +799,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Removes a css style name from this component
     **/
-    @:dox(group="Style related properties and methods")
+    @:dox(group = "Style related properties and methods")
     public function removeClass(name:String, invalidate:Bool = true) {
         if (classes.indexOf(name) != -1) {
             classes.remove(name);
@@ -699,7 +813,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Whether or not this component has a css class associated with it
     **/
-    @:dox(group="Style related properties and methods")
+    @:dox(group = "Style related properties and methods")
     public function hasClass(name:String):Bool {
         return (classes.indexOf(name) != -1);
     }
@@ -707,7 +821,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      A string representation of the css classes associated with this component
     **/
-    @:dox(group="Style related properties and methods")
+    @:dox(group = "Style related properties and methods")
     @clonable public var styleNames(get, set):String;
     private function get_styleNames():String {
         return classes.join(" ");
@@ -727,7 +841,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      An inline css string that will be parsed and applied as a custom style
     **/
-    @:dox(group="Style related properties and methods")
+    @:dox(group = "Style related properties and methods")
     @clonable public var styleString(get, set):String;
     private function get_styleString():String {
         return _styleString;
@@ -754,7 +868,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      The calculated style of this component
     **/
-    @:dox(group="Style related properties and methods")
+    @:dox(group = "Style related properties and methods")
     public var style(get, set):Style;
     private function get_style():Style {
         return _style;
@@ -773,8 +887,18 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Register a listener for a certain `UIEvent`
     **/
-    @:dox(group="Event related properties and methods")
+    @:dox(group = "Event related properties and methods")
     public function registerEvent(type:String, listener:Dynamic->Void) {
+        if (_disabled == true && isInteractiveEvent(type) == true) {
+            trace("its disabled");
+            if (_disabledEvents == null) {
+                _disabledEvents = new EventMap();
+            }
+            trace("adding to disabled: " + type);
+            _disabledEvents.add(type, listener);
+            return;
+        }
+        
         if (__events == null) {
             __events = new EventMap();
         }
@@ -786,8 +910,12 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Unregister a listener for a certain `UIEvent`
     **/
-    @:dox(group="Event related properties and methods")
+    @:dox(group = "Event related properties and methods")
     public function unregisterEvent(type:String, listener:Dynamic->Void) {
+        if (_disabledEvents != null && _disabled == false) {
+            _disabledEvents.remove(type, listener);
+        }
+        
         if (__events != null) {
             if (__events.remove(type, listener) == true) {
                 unmapEvent(type, _onMappedEvent);
@@ -798,7 +926,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Dispatch a certain `UIEvent`
     **/
-    @:dox(group="Event related properties and methods")
+    @:dox(group = "Event related properties and methods")
     public function dispatch(event:UIEvent) {
         if (__events != null) {
             __events.invoke(event.type, event, this);
@@ -809,6 +937,66 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         dispatch(event);
     }
 
+    private var _disabledEvents:EventMap;
+    private static var INTERACTIVE_EVENTS:Array<String> = [
+        MouseEvent.MOUSE_MOVE, MouseEvent.MOUSE_OVER, MouseEvent.MOUSE_OUT, MouseEvent.MOUSE_DOWN,
+        MouseEvent.MOUSE_UP, MouseEvent.MOUSE_WHEEL, MouseEvent.CLICK, KeyboardEvent.KEY_DOWN,
+        KeyboardEvent.KEY_UP
+    ];
+    
+    private function isInteractiveEvent(type:String):Bool {
+        return INTERACTIVE_EVENTS.indexOf(type) != -1;
+    }
+    
+    private function disableInteractivity(disable:Bool, styleName:String = null) {
+        if (disable == _disabled) {
+            return;
+        }
+        
+        _disabled = disable;
+        
+        if (styleName != null) {
+            if (disable == true) {
+                addClass(styleName);
+            } else {
+                removeClass(styleName);
+            }
+        }
+        
+        if (disable == true) {
+            if (__events != null) {
+                for (eventType in __events.keys()) {
+                    var listeners:FunctionArray<UIEvent->Void> = __events.listeners(eventType);
+                    if (listeners != null) {
+                        for (listener in listeners.copy()) {
+                            if (_disabledEvents == null) {
+                                _disabledEvents = new EventMap();
+                            }
+                            _disabledEvents.add(eventType, listener);
+                            unregisterEvent(eventType, listener);
+                        }
+                    }
+                }
+            }
+        } else {
+            if (_disabledEvents != null) {
+                for (eventType in _disabledEvents.keys()) {
+                    var listeners:FunctionArray<UIEvent->Void> = _disabledEvents.listeners(eventType);
+                    if (listeners != null) {
+                        for (listener in listeners.copy()) {
+                            registerEvent(eventType, listener);
+                        }
+                    }
+                }
+                _disabledEvents = null;
+            }
+        }
+        
+        for (child in childComponents) {
+            child.disableInteractivity(disable, styleName);
+        }
+    }
+    
     //***********************************************************************************************************
     // Layout related
     //***********************************************************************************************************
@@ -818,10 +1006,13 @@ class Component extends ComponentBase implements IComponentBase implements IClon
 
      _Note_: Invisible components are not included in parent layouts
     **/
-    @:dox(group="Layout related properties and methods")
+    @:dox(group = "Layout related properties and methods")
     public var includeInLayout(get, set):Bool;
     private function get_includeInLayout():Bool {
-        return _includeInLayout && !_hidden;
+        if (_hidden == true) {
+            return false;
+        }
+        return _includeInLayout;
     }
     private function set_includeInLayout(value:Bool):Bool {
         _includeInLayout = value;
@@ -832,7 +1023,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      The layout of this component
     **/
-    @:dox(group="Layout related properties and methods")
+    @:dox(group = "Layout related properties and methods")
     public var layout(get, set):Layout;
     private function get_layout():Layout {
         return _layout;
@@ -842,18 +1033,34 @@ class Component extends ComponentBase implements IComponentBase implements IClon
             //_layout = null;
             return value;
         }
+
+        if (_layout != null && Type.getClassName(Type.getClass(value)) == Type.getClassName(Type.getClass(_layout))) {
+            return value;
+        }
+
         _layout = value;
         _layout.component = this;
         return value;
     }
 
     private var _layoutLocked:Bool = false;
-    public function lockLayout() {
+    public function lockLayout(recursive:Bool = false) {
         _layoutReinvalidation = false;
         _layoutLocked = true;
+        if (recursive == true) {
+            for (child in childComponents) {
+                child.lockLayout(recursive);
+            }
+        }
     }
 
-    public function unlockLayout() {
+    public function unlockLayout(recursive:Bool = false) {
+        if (recursive == true) {
+            for (child in childComponents) {
+                child.unlockLayout(recursive);
+            }
+        }
+
         _layoutLocked = false;
         if (_layoutReinvalidation == true) {
             _layoutReinvalidation = false;
@@ -908,6 +1115,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
             invalidateLayout();
 
             onReady();
+            dispatch(new UIEvent(UIEvent.READY));
         }
     }
 
@@ -919,6 +1127,10 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     }
 
     private function onResized() {
+
+    }
+
+    private function onMoved() {
 
     }
 
@@ -943,13 +1155,39 @@ class Component extends ComponentBase implements IComponentBase implements IClon
 
     @style      public var opacity:Null<Float>;
 
+    public var horizontalAlign(get, set):String;
+    private function get_horizontalAlign():String {
+        return customStyle.horizontalAlign;
+    }
+    private function set_horizontalAlign(value:String):String {
+        customStyle.horizontalAlign = value;
+        invalidateStyle();
+        if (parentComponent != null) {
+            parentComponent.invalidateLayout();
+        }
+        return value;
+    }
+    
+    public var verticalAlign(get, set):String;
+    private function get_verticalAlign():String {
+        return customStyle.verticalAlign;
+    }
+    private function set_verticalAlign(value:String):String {
+        customStyle.verticalAlign = value;
+        invalidateStyle();
+        if (parentComponent != null) {
+            parentComponent.invalidateLayout();
+        }
+        return value;
+    }
+    
     //***********************************************************************************************************
     // Size related
     //***********************************************************************************************************
     /**
      Whether this component will automatically resize itself based on it childrens calculated width
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     public var autoWidth(get, null):Bool;
     private function get_autoWidth():Bool {
         if (_percentWidth != null || _width != null || style == null) {
@@ -964,7 +1202,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Whether this component will automatically resize itself based on it childrens calculated height
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     public var autoHeight(get, null):Bool;
     private function get_autoHeight():Bool {
         if (_percentHeight != null || _height  != null || style == null) {
@@ -979,7 +1217,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Resize this components width and height in one call
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     public function resizeComponent(width:Null<Float>, height:Null<Float>) {
         var invalidate:Bool = false;
         if (width != null && _componentWidth != width) {
@@ -998,19 +1236,19 @@ class Component extends ComponentBase implements IComponentBase implements IClon
             invalidateDisplay();
             invalidateLayout();
 
-            onResized();
-            dispatch(new UIEvent(UIEvent.RESIZE));
-
             if (parentComponent != null) {
                 parentComponent.invalidateLayout();
             }
+
+            onResized();
+            dispatch(new UIEvent(UIEvent.RESIZE));
         }
     }
 
     /**
      Autosize this component based on its children
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     private function autoSize():Bool {
         if (_ready == false || _layout == null) {
            return false;
@@ -1022,7 +1260,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      What percentage of this components parent to use to calculate its width
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     @clonable @bindable public var percentWidth(get, set):Null<Float>;
     private function get_percentWidth():Null<Float> {
         return _percentWidth;
@@ -1044,7 +1282,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      What percentage of this components parent to use to calculate its height
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     @clonable @bindable public var percentHeight(get, set):Null<Float>;
     private function get_percentHeight():Null<Float> {
         return _percentHeight;
@@ -1066,7 +1304,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
 
      _Note_: `left` and `top` must be stage (screen) co-ords
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     public function hitTest(left:Float, top:Float):Bool { // co-ords must be stage
         var b:Bool = false;
         var sx:Float = screenLeft;
@@ -1097,7 +1335,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      The calculated width of this component
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     @:clonable private var componentWidth(get, set):Null<Float>;
     private function get_componentWidth():Null<Float> {
         if (_componentWidth == null) {
@@ -1116,7 +1354,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      The calculated height of this component
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     @:clonable private var componentHeight(get, set):Null<Float>;
     private function get_componentHeight():Null<Float> {
         if (_componentHeight == null) {
@@ -1129,7 +1367,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return value;
     }
 
-    #if (openfl || nme)
+    #if ((openfl || nme) && !flixel)
 
     private var _width:Null<Float>;
     #if flash @:setter(width) #else override #end
@@ -1165,12 +1403,50 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return f;
     }
 
+    #elseif (flixel)
+
+    private var _width:Null<Float>;
+    private override function set_width(value:Float):Float {
+        if (value == 0) {
+            return value;
+        }
+        if (_width == value) {
+            return value;
+        }
+        _width = value;
+        componentWidth = value;
+        return value;
+    }
+
+    private override function get_width():Float {
+        var f:Float = componentWidth;
+        return f;
+    }
+
+    private var _height:Null<Float>;
+    private override function set_height(value:Float):Float {
+        if (value == 0) {
+            return value;
+        }
+        if (_height == value) {
+            return value;
+        }
+        _height = value;
+        componentHeight = value;
+        return value;
+    }
+
+    private override function get_height() {
+        var f:Float = componentHeight;
+        return f;
+    }
+
     #else
 
     /**
      The width of this component
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     @bindable public var width(get, set):Float;
     private var _width:Null<Float>;
     private function set_width(value:Float):Float {
@@ -1190,7 +1466,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      The height of this component
     **/
-    @:dox(group="Size related properties and methods")
+    @:dox(group = "Size related properties and methods")
     @bindable public var height(get, set):Float;
     private var _height:Null<Float>;
     private function set_height(value:Float):Float {
@@ -1202,7 +1478,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return value;
     }
 
-    private function get_height() {
+    private function get_height():Float {
         var f:Float = componentHeight;
         return f;
     }
@@ -1215,7 +1491,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Move this components left and top co-ord in one call
     **/
-    @:dox(group="Position related properties and methods")
+    @:dox(group = "Position related properties and methods")
     public function moveComponent(left:Null<Float>, top:Null<Float>) {
         var invalidate:Bool = false;
         if (left != null && _left != left) {
@@ -1229,6 +1505,9 @@ class Component extends ComponentBase implements IComponentBase implements IClon
 
         if (invalidate == true) {
             handlePosition(_left, _top, _style);
+
+            onMoved();
+            dispatch(new UIEvent(UIEvent.MOVE));
         }
     }
 
@@ -1236,7 +1515,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      The left co-ord of this component relative to its parent
     **/
-    @:dox(group="Position related properties and methods")
+    @:dox(group = "Position related properties and methods")
     public var left(get, set):Null<Float>;
     private function get_left():Null<Float> {
         return _left;
@@ -1250,7 +1529,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      The top co-ord of this component relative to its parent
     **/
-    @:dox(group="Position related properties and methods")
+    @:dox(group = "Position related properties and methods")
     public var top(get, set):Null<Float>;
     private function get_top():Null<Float> {
         return _top;
@@ -1263,18 +1542,18 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      The left co-ord of this component relative to the screen
     **/
-    @:dox(group="Position related properties and methods")
+    @:dox(group = "Position related properties and methods")
     public var screenLeft(get, null):Float;
     private function get_screenLeft():Float {
         var c:Component = this;
         var xpos:Float = 0;
         while (c != null) {
             xpos += c.left;
-            /*
-            if (c.sprite.scrollRect != null) {
-                xpos -= c.sprite.scrollRect.left;
+
+            if (c.componentClipRect != null) {
+                xpos -= c.componentClipRect.left;
             }
-            */
+
             c = c.parentComponent;
         }
         return xpos;
@@ -1283,18 +1562,18 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      The top co-ord of this component relative to the screen
     **/
-    @:dox(group="Position related properties and methods")
+    @:dox(group = "Position related properties and methods")
     public var screenTop(get, null):Float;
     private function get_screenTop():Float {
         var c:Component = this;
         var ypos:Float = 0;
         while (c != null) {
             ypos += c.top;
-            /*
-            if (c.sprite.scrollRect != null) {
-                ypos -= c.sprite.scrollRect.top;
+
+            if (c.componentClipRect != null) {
+                ypos -= c.componentClipRect.top;
             }
-            */
+
             c = c.parentComponent;
         }
         return ypos;
@@ -1306,7 +1585,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Whether or not this component is allowed to be exposed to script interpreters (defaults to _true_)
     **/
-    @:dox(group="Script related properties and methods")
+    @:dox(group = "Script related properties and methods")
     public var scriptAccess:Bool = true;
 
     private var _interp:ScriptInterp;
@@ -1316,7 +1595,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
 
      _Note_: Setting this to non-null will cause this component to create and maintain its own script interpreter during initialsation
     **/
-    @:dox(group="Script related properties and methods")
+    @:dox(group = "Script related properties and methods")
     public var script(null, set):String;
     private function set_script(value:String):String {
         _script = value;
@@ -1328,7 +1607,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
 
      _Note_: This component will first attempt to use its own script interpreter if its avialable otherwise it will scan its parents until it finds one
     **/
-    @:dox(group="Script related properties and methods")
+    @:dox(group = "Script related properties and methods")
     public function executeScriptCall(expr:String) {
         #if allow_script_errors
         try {
@@ -1377,7 +1656,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return interp;
     }
 
-    private function initScript():Void {
+    private function initScript() {
         if (_script != null) {
             try {
                 var parser = new hscript.Parser();
@@ -1404,8 +1683,8 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Registers a piece of hscript to be execute when a certain `UIEvent` is fired
     **/
-    @:dox(group="Script related properties and methods")
-    public function addScriptEvent(event:String, script:String):Void {
+    @:dox(group = "Script related properties and methods")
+    public function addScriptEvent(event:String, script:String) {
         event = event.toLowerCase();
         if (_scriptEvents == null) {
             _scriptEvents = new Map<String, String>();
@@ -1419,19 +1698,21 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         }
     }
 
-    private function _onScriptClick(event:MouseEvent):Void {
+    private function _onScriptClick(event:MouseEvent) {
         if (_scriptEvents != null) {
             var script:String = _scriptEvents.get("onclick");
             if (script != null) {
+                event.cancel();
                 executeScriptCall(script);
             }
         }
     }
 
-    private function _onScriptChange(event:UIEvent):Void {
+    private function _onScriptChange(event:UIEvent) {
         if (_scriptEvents != null) {
             var script:String = _scriptEvents.get("onchange");
             if (script != null) {
+                event.cancel();
                 executeScriptCall(script);
             }
         }
@@ -1440,15 +1721,15 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Recursively generates list of all child components that have specified an `id`
     **/
-    @:dox(group="Script related properties and methods")
+    @:dox(group = "Script related properties and methods")
     public var namedComponents(get, null):Array<Component>;
     private function get_namedComponents():Array<Component> {
-        var list:Array<Component> = new Array<Component>();
+        var list:Array<Component> = [];
         addNamedComponentsFrom(this, list);
         return list;
     }
 
-    private static function addNamedComponentsFrom(parent:Component, list:Array<Component>):Void {
+    private static function addNamedComponentsFrom(parent:Component, list:Array<Component>) {
         if (parent == null) {
             return;
         }
@@ -1466,7 +1747,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Utility property to add a single `UIEvent.CLICK` event
     **/
-    @:dox(group="Event related properties and methods")
+    @:dox(group = "Event related properties and methods")
     public var onClick(null, set):MouseEvent->Void;
     private function set_onClick(value:MouseEvent->Void):MouseEvent->Void {
         if (__onClick != null) {
@@ -1478,16 +1759,21 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         return value;
     }
 
+    private var __onChange:UIEvent->Void;
     /**
      Utility property to add a single `UIEvent.CHANGE` event
     **/
-    @:dox(group="Event related properties and methods")
+    @:dox(group = "Event related properties and methods")
     public var onChange(null, set):UIEvent->Void;
     private function set_onChange(value:UIEvent->Void):UIEvent->Void {
+        if (__onChange != null) {
+            unregisterEvent(UIEvent.CHANGE, __onChange);
+            __onChange = null;
+        }
         registerEvent(UIEvent.CHANGE, value);
+        __onChange = value;
         return value;
     }
-
 
     //***********************************************************************************************************
     // Invalidation
@@ -1497,13 +1783,13 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Invalidate this components layout, may result in multiple calls to `invalidateDisplay` and `invalidateLayout` of its children
     **/
-    @:dox(group="Invalidation related properties and methods")
+    @:dox(group = "Invalidation related properties and methods")
     public function invalidateLayout() {
-        if (_ready == false) {
+        if (_ready == false || _layout == null) {
             return;
         }
 
-        if (_layoutInvalidating == true || _layoutLocked == true) {
+        if ((_layoutInvalidating == true || _layoutLocked == true) && _layoutReinvalidation == false) {
             // means that if a request to invalidate comes through and were busy
             // (like async resources), we make note to invalidate when were done
             _layoutReinvalidation = true;
@@ -1526,7 +1812,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Invalidate the visible aspect of this component
     **/
-    @:dox(group="Invalidation related properties and methods")
+    @:dox(group = "Invalidation related properties and methods")
     public function invalidateDisplay() {
         if (_ready == false) {
             return;
@@ -1550,7 +1836,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     /**
      Invalidate and recalculate this components style, may result in a call to `invalidateDisplay`
     **/
-    @:dox(group="Invalidation related properties and methods")
+    @:dox(group = "Invalidation related properties and methods")
     public function invalidateStyle(invalidate:Bool = true) {
         var s:Style = Toolkit.styleSheet.applyClasses(this, false);
         if (_ready == false || _style == null || _style.equalTo(s) == false) { // lets not update if nothing has changed
@@ -1562,7 +1848,7 @@ class Component extends ComponentBase implements IComponentBase implements IClon
         }
     }
 
-    private override function applyStyle(style:Style):Void {
+    private override function applyStyle(style:Style) {
         super.applyStyle(style);
 
         if (style.percentWidth != null) {
@@ -1580,6 +1866,10 @@ class Component extends ComponentBase implements IComponentBase implements IClon
 
         if (style.native != null) {
             native = style.native;
+        }
+
+        if (style.hidden != null) {
+            hidden = style.hidden;
         }
 
         /*
@@ -1609,8 +1899,20 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     // Clonable
     //***********************************************************************************************************
     public function cloneComponent():Component {
-        if (c.width > 0) c.width = this.width;
-        if (c.height > 0) c.height = this.height;
+        if (_ready == false) {
+            //ready();
+        }
+        if (autoWidth == false && this.width > 0) {
+            c.width = this.width;
+        }
+        if (autoHeight == false && this.height > 0) {
+            c.height = this.height;
+        }
+        if (_scriptEvents != null) {
+            for (k in _scriptEvents.keys()) {
+                c.addScriptEvent(k, _scriptEvents.get(k));
+            }
+        }
     }
 
     //***********************************************************************************************************
@@ -1678,5 +1980,24 @@ class Component extends ComponentBase implements IComponentBase implements IClon
     public var className(get, null):String;
     private function get_className():String {
         return Type.getClassName(Type.getClass(this));
+    }
+}
+
+//***********************************************************************************************************
+// Default behaviours
+//***********************************************************************************************************
+@:dox(hide)
+@:access(haxe.ui.core.Component)
+class ComponentDefaultDisabledBehaviour extends Behaviour {
+    public override function set(value:Variant) {
+        if (value.isNull) {
+            return;
+        }
+
+        _component.disableInteractivity(value, ":disabled");
+    }
+
+    public override function get():Variant {
+        return _component._disabled;
     }
 }

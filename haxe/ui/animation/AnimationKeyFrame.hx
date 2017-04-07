@@ -8,7 +8,7 @@ class AnimationKeyFrame {
     public var animation:Animation;
     public var time(default, default):Int;
 
-    public var componentRefs:Array<AnimationComponentRef> = new Array<AnimationComponentRef>();
+    public var componentRefs:Array<AnimationComponentRef> = [];
 
     public function new(time:Int) {
         this.time = time;
@@ -51,11 +51,24 @@ class AnimationKeyFrame {
 
                 #if actuate
                 Actuate.tween(actualComponent, duration / 1000, props, true).ease(animation.easing).onComplete(onComplete);
+                #else
+                onComplete();
                 #end
             }
         }
     }
 
+    public function stop() {
+        #if actuate
+        for (ref in componentRefs) {
+            var actualComponent = animation.getComponent(ref.id);
+            if (actualComponent != null) {
+                Actuate.stop(actualComponent);
+            }
+        }
+        #end
+    }
+    
     private function onComplete() {
         _count--;
         if (_count == 0) {

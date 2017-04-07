@@ -7,6 +7,7 @@
     <components>
         <class name="haxe.ui.core.Component" />
         <class name="haxe.ui.core.ItemRenderer" />
+        <class name="haxe.ui.core.BasicItemRenderer" />
         <class package="haxe.ui.components" />
         <class package="haxe.ui.containers" />
         <class package="haxe.ui.containers.dialogs" />
@@ -23,7 +24,9 @@
         <!--
         TODO: Under neko & haxe 3.3 importing 'Math' like this causes this error: Class<Math> has no field MathImpl
         -->
+        <!--
         <import class="Math" keep="true" static="true" />
+        -->    
         <import class="StringTools" keep="true" static="true" />
         <import class="haxe.ui.core.Screen" keep="true" static="true" />
         <import class="haxe.ui.containers.dialogs.Dialog" keep="true" static="true" />
@@ -70,7 +73,7 @@
         <animation id="haxe.ui.components.animation.pos" ease="Linear.easeNone">
         <animation id="haxe.ui.components.animation.pos" ease="Linear.easeNone">
         -->
-        <animation id="haxe.ui.components.animation.pos" ease="Bounce.easeOut">
+        <animation id="haxe.ui.components.animation.pos" ease="Bounce.easeNone">
             <keyframe time="300">
                 <target pos="{pos}" />
             </keyframe>

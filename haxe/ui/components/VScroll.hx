@@ -2,13 +2,12 @@ package haxe.ui.components;
 
 import haxe.ui.core.MouseEvent;
 import haxe.ui.layouts.DefaultLayout;
-import haxe.ui.core.IClonable;
 
 /**
  A vertical implementation of a `Scroll`
 **/
-@:dox(icon="/icons/ui-scroll-bar.png")
-class VScroll extends Scroll implements IClonable<VScroll> {
+@:dox(icon = "/icons/ui-scroll-bar.png")
+class VScroll extends Scroll {
     public function new() {
         super();
         layout = new VScrollLayout();
@@ -20,7 +19,7 @@ class VScroll extends Scroll implements IClonable<VScroll> {
     private override function _onThumbMouseDown(event:MouseEvent) {
         super._onThumbMouseDown(event);
 
-        _mouseDownOffset = event.screenY - _thumb.top;
+        _mouseDownOffset = event.screenY - _thumb.top + layout.paddingTop;
     }
 
     private override function _onScreenMouseMove(event:MouseEvent) {
@@ -31,13 +30,15 @@ class VScroll extends Scroll implements IClonable<VScroll> {
 
         var ypos:Float = event.screenY - _mouseDownOffset;
         var minY:Float = 0;
-        if (_deincButton != null) {
+        if (_deincButton != null && _deincButton.hidden == false) {
             minY = _deincButton.componentHeight + layout.verticalSpacing;
         }
+
         var maxY:Float = layout.usableHeight - _thumb.componentHeight;
-        if (_deincButton != null) {
+        if (_deincButton != null && _deincButton.hidden == false) {
             maxY += _deincButton.componentHeight + layout.verticalSpacing;
         }
+
         if (ypos < minY) {
             ypos = minY;
         } else if (ypos > maxY) {
@@ -51,6 +52,14 @@ class VScroll extends Scroll implements IClonable<VScroll> {
         var newValue:Float = min + ((v / ucy) * m);
         pos = newValue;
     }
+
+    private override function _onMouseDown(event:MouseEvent) {
+        if (event.screenY < _thumb.screenTop) {
+            animatePos(pos - pageSize);
+        } else if (event.screenY > _thumb.screenTop + _thumb.componentHeight) {
+            animatePos(pos + pageSize);
+        }
+    }
 }
 
 //***********************************************************************************************************
@@ -62,7 +71,7 @@ class VScrollLayout extends DefaultLayout {
         super();
     }
 
-    public override function resizeChildren():Bool {
+    public override function resizeChildren() {
         super.resizeChildren();
 
         var scroll:Scroll = cast component;
@@ -80,10 +89,9 @@ class VScrollLayout extends DefaultLayout {
                 thumb.componentHeight = thumbHeight;
             }
         }
-        return true;
     }
 
-    public override function repositionChildren():Void {
+    public override function repositionChildren() {
         super.repositionChildren();
 
         var deinc:Button = component.findComponent("scroll-deinc-button");

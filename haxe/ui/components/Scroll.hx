@@ -1,19 +1,17 @@
 package haxe.ui.components;
 
 import haxe.ui.animation.AnimationManager;
-import haxe.ui.core.Component;
+import haxe.ui.core.Behaviour;
 import haxe.ui.core.InteractiveComponent;
 import haxe.ui.core.MouseEvent;
 import haxe.ui.core.UIEvent;
 import haxe.ui.util.Variant;
-import haxe.ui.core.IClonable;
-import haxe.ui.core.Behaviour;
 
 /**
  Encapsulates shared functionality of both vertical and horizontal scrollbar components
 **/
-@:dox(icon="/icons/ui-scroll-bar-horizontal.png")
-class Scroll extends InteractiveComponent implements IClonable<Scroll> {
+@:dox(icon = "/icons/ui-scroll-bar-horizontal.png")
+class Scroll extends InteractiveComponent {
     private var _incButton:Button;
     private var _deincButton:Button;
     private var _thumb:Button;
@@ -27,16 +25,17 @@ class Scroll extends InteractiveComponent implements IClonable<Scroll> {
     //***********************************************************************************************************
     // Internals
     //***********************************************************************************************************
-    private override function createDefaults():Void {
-        _defaultBehaviours = [
+    private override function createDefaults() {
+        super.createDefaults();
+        defaultBehaviours([
             "min" => new ScrollDefaultMinBehaviour(this),
             "max" => new ScrollDefaultMaxBehaviour(this),
             "pos" => new ScrollDefaultPosBehaviour(this),
             "pageSize" => new ScrollDefaultPageSizeBehaviour(this)
-        ];
+        ]);
     }
 
-    private override function create():Void {
+    private override function create() {
         super.create();
 
         behaviourSet("min", _min);
@@ -45,7 +44,7 @@ class Scroll extends InteractiveComponent implements IClonable<Scroll> {
         behaviourSet("pageSize", _pageSize);
     }
 
-    private override function createChildren():Void {
+    private override function createChildren() {
         if (componentWidth <= 0) {
             componentWidth = 100;
         }
@@ -114,7 +113,7 @@ class Scroll extends InteractiveComponent implements IClonable<Scroll> {
     /**
      The current value of the scrollbar
     **/
-    @:dox(group="Value related properties and methods")
+    @:dox(group = "Value related properties and methods")
     @bindable @clonable public var pos(get, set):Float;
     private function get_pos():Float {
         return _pos;
@@ -158,7 +157,7 @@ class Scroll extends InteractiveComponent implements IClonable<Scroll> {
     /**
      The minimum value the scrollbar can hold
     **/
-    @:dox(group="Value related properties and methods")
+    @:dox(group = "Value related properties and methods")
     @bindable @clonable public var min(get, set):Float;
     private function get_min():Float {
         return _min;
@@ -178,7 +177,7 @@ class Scroll extends InteractiveComponent implements IClonable<Scroll> {
     /**
      The maximum value the scrollbar can hold
     **/
-    @:dox(group="Value related properties and methods")
+    @:dox(group = "Value related properties and methods")
     @bindable @clonable public var max(get, set):Float;
     private function get_max():Float {
         return _max;
@@ -198,7 +197,7 @@ class Scroll extends InteractiveComponent implements IClonable<Scroll> {
     /**
      How big a page is considered to be in this scrollbar (affects the size of the thumb)
     **/
-    @:dox(group="Value related properties and methods")
+    @:dox(group = "Value related properties and methods")
     @bindable @clonable public var pageSize(get, set):Float;
     private function get_pageSize():Float {
         return _pageSize;
@@ -217,7 +216,7 @@ class Scroll extends InteractiveComponent implements IClonable<Scroll> {
     /**
      What value to add to or subtract from the scrollbars value when using the up/down or left/right buttons
     **/
-    @:dox(group="Value related properties and methods")
+    @:dox(group = "Value related properties and methods")
     @bindable @clonable public var incrementSize(get, set):Float;
     private function get_incrementSize():Float {
         return _incrementSize;
@@ -257,11 +256,6 @@ class Scroll extends InteractiveComponent implements IClonable<Scroll> {
     }
 
     private function _onMouseDown(event:MouseEvent) {
-        if (event.screenY < _thumb.screenTop) {
-            animatePos(pos - pageSize);
-        } else if (event.screenY > _thumb.screenTop + _thumb.componentHeight) {
-            animatePos(pos + pageSize);
-        }
     }
 
     //******************************************************************************************
@@ -270,8 +264,8 @@ class Scroll extends InteractiveComponent implements IClonable<Scroll> {
     /**
      Deincrement the scrollbars value
     **/
-    @:dox(group="Value related properties and methods")
-    public function deincrementValue():Void {
+    @:dox(group = "Value related properties and methods")
+    public function deincrementValue() {
         //pos -= _incrementSize;
         animatePos(pos - _incrementSize);
     }
@@ -279,8 +273,8 @@ class Scroll extends InteractiveComponent implements IClonable<Scroll> {
     /**
      Increment the scrollbars value
     **/
-    @:dox(group="Value related properties and methods")
-    public function incrementValue():Void {
+    @:dox(group = "Value related properties and methods")
+    public function incrementValue() {
         //pos += _incrementSize;
         animatePos(pos + _incrementSize);
     }
@@ -324,4 +318,3 @@ class ScrollDefaultPageSizeBehaviour extends Behaviour {
         scroll.invalidateLayout();
     }
 }
-

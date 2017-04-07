@@ -1,4 +1,5 @@
 package haxe.ui.parsers.ui;
+
 import haxe.ui.parsers.ui.ComponentInfo.ComponentBindingInfo;
 import haxe.ui.parsers.ui.resolvers.ResourceResolver;
 
@@ -22,7 +23,7 @@ class XMLParser extends ComponentParser {
         return component;
     }
 
-    private static function parseComponent(component:ComponentInfo, xml:Xml, resourceResolver:ResourceResolver) {
+    private static function parseComponent(component:ComponentInfo, xml:Xml, resourceResolver:ResourceResolver):Bool {
         var isComponent:Bool = true;
         var nodeName = xml.nodeName;
         if (nodeName == "import") {
@@ -141,6 +142,12 @@ class XMLParser extends ComponentParser {
     }
 
     private static function parseDetails(component:ComponentInfo, xml:Xml) {
+        if (xml.firstChild() != null && '${xml.firstChild().nodeType}' == "1") {
+            var value = StringTools.trim(xml.firstChild().nodeValue);
+            if (value != null && value.length > 0) {
+                component.text = value;
+            }
+        }
         component.type = xml.nodeName;
     }
 
@@ -148,6 +155,20 @@ class XMLParser extends ComponentParser {
         for (attrName in xml.attributes()) {
             var attrValue:String = xml.get(attrName);
             switch (attrName) {
+                case "condition":
+                    component.condition = attrValue;
+                case "if":
+                    var condition = [];
+                    for (t in attrValue.split(",")) {
+                        condition.push('backend == "${StringTools.trim(t)}"');
+                    }
+                    component.condition = condition.join(" || ");
+                case "unless":
+                    var condition = [];
+                    for (t in attrValue.split(",")) {
+                        condition.push('backend != "${StringTools.trim(t)}"');
+                    }
+                    component.condition = condition.join(" && ");
                 case "id":
                     component.id = attrValue;
                 case "left":
@@ -166,16 +187,33 @@ class XMLParser extends ComponentParser {
                     } else {
                         component.height = ComponentParser.float(attrValue);
                     }
+                case "contentWidth":
+                    if (ComponentParser.isPercentage(attrValue) == true) {
+                        component.percentContentWidth = ComponentParser.float(attrValue);
+                    } else {
+                        component.contentWidth = ComponentParser.float(attrValue);
+                    }
+                case "contentHeight":
+                    if (ComponentParser.isPercentage(attrValue) == true) {
+                        component.percentContentHeight = ComponentParser.float(attrValue);
+                    } else {
+                        component.contentHeight = ComponentParser.float(attrValue);
+                    }
                 case "text":
                     component.text = attrValue;
                 case "style":
                     component.style = attrValue;
-                case "styleNames":
+                case "styleNames" | "styleName":
                     component.styleNames = attrValue;
                 case "composite":
                     component.composite = (attrValue == "true");
+                case "layout":
+                    component.layoutName = attrValue;
                 case "bindTo" | "bindTransform": // do nothing
                 default:
+                    if (attrName == "group") {
+                        attrName = "groupName";
+                    }
                     component.properties.set(attrName, attrValue);
             }
         }

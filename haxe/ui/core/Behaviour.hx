@@ -18,7 +18,7 @@ class Behaviour {
     /**
      Called when a component property setter is called
     **/
-    public function set(value:Variant):Void {
+    public function set(value:Variant) {
 
     }
 
@@ -29,11 +29,22 @@ class Behaviour {
         return null;
     }
 
+    public function getDynamic():Dynamic {
+        return null;
+    }
+
     /**
      Update this behaviour with its current value
     **/
-    public function update():Void {
+    public function update() {
 
+    }
+
+    /**
+     Make a specific call to an operation
+    **/
+    public function call(id:String):Variant {
+        return null;
     }
 
     /**

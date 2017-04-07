@@ -10,14 +10,14 @@
     border-radius: none;
 }
 
-.button:native {
+.button:native, .dropdown:native {
     background: none;
     border: none;
     border-radius: none;
     color: none;
 }
 
-.textfield:native {
+.textfield:native, .textarea:native {
     background: none;
     border: none;
     border-radius: none;

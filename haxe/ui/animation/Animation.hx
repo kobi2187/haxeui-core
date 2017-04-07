@@ -1,13 +1,13 @@
 package haxe.ui.animation;
 
 import haxe.ui.core.Component;
+
 #if actuate
 import motion.easing.IEasing;
 import motion.easing.Back;
 import motion.easing.Bounce;
 import motion.easing.Cubic;
 import motion.easing.Expo;
-import motion.easing.IEasing;
 import motion.easing.Linear;
 import motion.easing.Quad;
 import motion.easing.Quart;
@@ -16,7 +16,7 @@ import motion.easing.Sine;
 #end
 
 class Animation {
-    public var keyFrames:Array<AnimationKeyFrame> = new Array<AnimationKeyFrame>();
+    public var keyFrames:Array<AnimationKeyFrame> = [];
     public var componentMap:Map<String, Component> = new Map<String, Component>();
 
     #if actuate
@@ -27,6 +27,8 @@ class Animation {
 
     public var id:String;
 
+    private var _currentKeyFrame:AnimationKeyFrame;
+    
     public function new() {
     }
 
@@ -59,11 +61,13 @@ class Animation {
         _stopped = false;
         _currentTime = 0;
         _currentFrameIndex = 0;
+        _currentKeyFrame = null;
         runFrame(_currentFrameIndex);
     }
 
     private function runFrame(index:Int) {
         var f:AnimationKeyFrame = keyFrames[index];
+        _currentKeyFrame = f;
         var duration:Float = f.time - _currentTime;
         f.run(duration, function() {
             _currentTime = f.time;
@@ -105,6 +109,9 @@ class Animation {
 
     private var _stopped:Bool = false;
     public function stop() {
+        if (_currentKeyFrame != null) {
+            _currentKeyFrame.stop();
+        }
         _stopped = true;
         _loop = false;
     }
@@ -149,7 +156,7 @@ class Animation {
 
     #if actuate
     public static function easingFromString(s:String):IEasing {
-        switch(s) {
+        switch (s) {
             case "Linear.easeNone": return Linear.easeNone;
             case "Back.easeIn":     return Back.easeIn;
             case "Back.easeOut":    return Back.easeOut;

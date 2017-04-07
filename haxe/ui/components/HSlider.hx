@@ -1,17 +1,14 @@
 package haxe.ui.components;
 
-import haxe.ui.animation.Animation;
-import haxe.ui.animation.AnimationManager;
 import haxe.ui.core.Component;
 import haxe.ui.core.MouseEvent;
 import haxe.ui.layouts.DefaultLayout;
-import haxe.ui.core.IClonable;
 
 /**
  A horizontal implementation of a `Slider`
 **/
-@:dox(icon="/icons/ui-slider-050.png")
-class HSlider extends Slider implements IClonable<HSlider> {
+@:dox(icon = "/icons/ui-slider-050.png")
+class HSlider extends Slider {
     public function new() {
         super();
     }
@@ -19,12 +16,12 @@ class HSlider extends Slider implements IClonable<HSlider> {
     //***********************************************************************************************************
     // Internals
     //***********************************************************************************************************
-    private override function createDefaults():Void {
+    private override function createDefaults() {
         super.createDefaults();
         _defaultLayout = new HSliderLayout();
     }
 
-    private override function createChildren():Void {
+    private override function createChildren() {
         super.createChildren();
 
         if (componentWidth <= 0) {
@@ -67,7 +64,11 @@ class HSlider extends Slider implements IClonable<HSlider> {
             } else {
                 _activeThumb = _rangeEndThumb;
                 var xpos:Float = event.screenX - _valueBackground.screenLeft - (_activeThumb.componentWidth / 2) - _valueBackground.paddingLeft;
-                animatePos(calcPosFromCoord(xpos));
+                animatePos(calcPosFromCoord(xpos), function() {
+                    if (_activeThumb != null) {
+                        _mouseDownOffset = (_activeThumb.componentWidth / 2) + _valueBackground.paddingLeft;
+                    }
+                });
                 //pos = calcPosFromCoord(xpos);
                 _onRangeEndThumbMouseDown(event);
             }
@@ -81,7 +82,11 @@ class HSlider extends Slider implements IClonable<HSlider> {
         } else {
             _activeThumb = _rangeEndThumb;
             var xpos:Float = event.screenX - _valueBackground.screenLeft - (_activeThumb.componentWidth / 2) - _valueBackground.paddingLeft;
-            animatePos(calcPosFromCoord(xpos));
+            animatePos(calcPosFromCoord(xpos), function() {
+                if (_activeThumb != null) {
+                    _mouseDownOffset = (_activeThumb.componentWidth / 2) + _valueBackground.paddingLeft;
+                }
+            });
             //pos = calcPosFromCoord(xpos);
             _onRangeEndThumbMouseDown(event);
         }
@@ -97,7 +102,8 @@ class HSlider extends Slider implements IClonable<HSlider> {
         _mouseDownOffset = event.screenX - _activeThumb.screenLeft + _valueBackground.paddingLeft;
     }
 
-    private override function _onScreenMouseMove(event:MouseEvent):Void {
+    private override function _onScreenMouseMove(event:MouseEvent) {
+        super._onScreenMouseMove(event);
         if (_mouseDownOffset == -1) {
             return;
         }
@@ -160,7 +166,7 @@ class HSliderLayout extends DefaultLayout {
         super();
     }
 
-    public override function resizeChildren():Bool {
+    public override function resizeChildren() {
         super.resizeChildren();
 
         var background:Component = component.findComponent("slider-value-background");
@@ -199,10 +205,9 @@ class HSliderLayout extends DefaultLayout {
                 }
             }
         }
-        return true;
     }
 
-    public override function repositionChildren():Void {
+    public override function repositionChildren() {
         super.repositionChildren();
 
         var background:Component = component.findComponent("slider-value-background");
@@ -226,7 +231,7 @@ class HSliderLayout extends DefaultLayout {
             value.left = x + background.layout.paddingLeft;
 
             if (rangeStartButton != null) {
-                rangeStartButton.left = x;// - (rangeStartButton.width / 2);
+                rangeStartButton.left = x; // - (rangeStartButton.width / 2);
             }
             if (rangeEndButton != null) {
                 rangeEndButton.left = paddingLeft + value.left + value.componentWidth - (rangeEndButton.componentWidth / 2);

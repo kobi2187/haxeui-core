@@ -4,15 +4,14 @@ import haxe.ui.components.Button;
 import haxe.ui.components.Label;
 import haxe.ui.core.Component;
 import haxe.ui.core.MouseEvent;
-import haxe.ui.core.UIEvent;
 import haxe.ui.layouts.VerticalLayout;
 
 /**
  Class returned from `Screen.instance.showDialog` or `Screen.instance.messageDialog`
 **/
-@:dox(icon="/icons/application-sub.png")
+@:dox(icon = "/icons/application-sub.png")
 class Dialog extends Component {
-    private var _titleBar:HBox;
+    private var _titleBar:Box;
     private var _buttons:HBox;
 
     private var _title:Label;
@@ -25,16 +24,16 @@ class Dialog extends Component {
     //***********************************************************************************************************
     // Internals
     //***********************************************************************************************************
-    private override function createChildren():Void {
+    private override function createChildren() {
         layout = new VerticalLayout();
     }
 
-    private function createTitleBar():Void {
+    private function createTitleBar() {
         if (native == true) {
             return;
         }
         if (_titleBar == null) {
-            _titleBar = new HBox();
+            _titleBar = new Box();
             _titleBar.id = "dialog-title-bar";
             _titleBar.addClass("dialog-title-bar");
 
@@ -48,20 +47,24 @@ class Dialog extends Component {
             _closeButton.id = "dialog-close-button";
             _closeButton.addClass("dialog-close-button");
             _closeButton.registerEvent(MouseEvent.CLICK, _onButtonClick);
+            var dialogButton:DialogButton = new DialogButton();
+            dialogButton.closesDialog = true;
+            dialogButton.id = '${DialogButton.CLOSE}';
+            _closeButton.userData = dialogButton;
             _titleBar.addComponent(_closeButton);
 
             addComponent(_titleBar);
         }
     }
 
-    private function createButtonBar():Void {
+    private function createButtonBar() {
         if (_buttons == null && _options != null && _options.buttons.length > 0) {
             _buttons = new HBox();
             _buttons.id = "dialog-buttons";
             _buttons.addClass("dialog-buttons");
 
             for (b in _options.buttons) {
-                var button = addButton(b);
+                addButton(b);
             }
 
             addComponent(_buttons);
@@ -83,7 +86,6 @@ class Dialog extends Component {
 
         return r;
     }
-
 
     //***********************************************************************************************************
     // Public API

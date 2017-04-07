@@ -3,8 +3,8 @@ package haxe.ui;
 import haxe.ui.backend.AppBase;
 import haxe.ui.core.Component;
 import haxe.ui.core.Screen;
-import haxe.ui.macros.ComponentMacros;
 
+@:keep
 class HaxeUIApp extends AppBase {
     public function new() {
         super();

@@ -7,16 +7,14 @@ import haxe.ui.parsers.modules.ModuleParser;
 #if macro
 import haxe.macro.Expr;
 import haxe.macro.Context;
-import haxe.rtti.Meta;
 import sys.FileSystem;
 import sys.io.File;
-import haxe.macro.Compiler;
 #end
 
 class ModuleMacros {
-    private static var _modules:Array<Module> = new Array<Module>();
+    private static var _modules:Array<Module> = [];
 
-    private static var _modulesProcessed:Bool = false;
+    private static var _modulesProcessed:Bool;
     macro public static function processModules():Expr {
         if (_modulesProcessed == true) {
             return macro null;
@@ -58,6 +56,9 @@ class ModuleMacros {
                             classAlias = parts[parts.length - 1];
                         } else {
                             skipRest = true; // as we have an alias defined lets skip any other types (assumes the first class is the one to alias)
+                        }
+                        if (StringTools.startsWith(resolvedClass, ".")) {
+                            continue;
                         }
                         code += 'haxe.ui.scripting.ScriptInterp.addClassAlias("${classAlias}", "${resolvedClass}");\n';
 
@@ -220,14 +221,17 @@ class ModuleMacros {
         MacroHelpers.scanClassPath(function(filePath:String) {
             var moduleParser = ModuleParser.get(MacroHelpers.extension(filePath));
             if (moduleParser != null) {
-                var module:Module = moduleParser.parse(File.getContent(filePath));
-                module.validate();
-                _modules.push(module);
-                return true;
+                try {
+                    var module:Module = moduleParser.parse(File.getContent(filePath));
+                    module.validate();
+                    _modules.push(module);
+                    return true;
+                } catch (e:Dynamic) {
+                    trace('WARNING: Problem parsing module ${MacroHelpers.extension(filePath)} (${filePath}) - ${e} (skipping file)');
+                }
             }
             return false;
         }, ["module."]);
-
 
         _modulesLoaded = true;
         return _modules;

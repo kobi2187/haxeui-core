@@ -1,15 +1,13 @@
 package haxe.ui.components;
 
 import haxe.ui.core.Component;
-import haxe.ui.core.MouseEvent;
 import haxe.ui.layouts.DefaultLayout;
-import haxe.ui.core.IClonable;
 
 /**
  A horizontal implementation of a `Slider`
 **/
-@:dox(icon="/icons/ui-progress-bar.png")
-class HProgress extends Progress implements IClonable<HProgress> {
+@:dox(icon = "/icons/ui-progress-bar.png")
+class HProgress extends Progress {
     public function new() {
         super();
     }
@@ -17,12 +15,12 @@ class HProgress extends Progress implements IClonable<HProgress> {
     //***********************************************************************************************************
     // Internals
     //***********************************************************************************************************
-    private override function createDefaults():Void {
+    private override function createDefaults() {
         super.createDefaults();
         _defaultLayout = new HProgressLayout();
     }
 
-    private override function createChildren():Void {
+    private override function createChildren() {
         super.createChildren();
         if (componentWidth <= 0) {
             componentWidth = 150;
@@ -42,7 +40,7 @@ class HProgressLayout extends DefaultLayout {
         super();
     }
 
-    public override function resizeChildren():Bool {
+    public override function resizeChildren() {
         super.resizeChildren();
 
         var value:Component = component.findComponent("progress-value");
@@ -71,10 +69,9 @@ class HProgressLayout extends DefaultLayout {
                 value.hidden = false;
             }
         }
-        return true;
     }
 
-    public override function repositionChildren():Void {
+    public override function repositionChildren() {
         super.repositionChildren();
 
         var value:Component = component.findComponent("progress-value");

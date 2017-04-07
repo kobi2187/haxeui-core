@@ -1,5 +1,6 @@
 package haxe.ui.styles;
 
+import haxe.ui.util.Variant;
 import haxe.ui.styles.Defs;
 import haxe.ui.util.MathUtil;
 
@@ -69,52 +70,52 @@ class Parser {
         case "padding":
             switch( v ) {
             case VGroup([a, b]):
-                var a = getVal(a), b = getVal(b);
+                var a = getVariant(a), b = getVariant(b);
                 if( a != null && b != null ) {
                     s.paddingTop = s.paddingBottom = a;
                     s.paddingLeft = s.paddingRight = b;
                     return true;
                 }
             default:
-                var i = getVal(v);
+                var i = getVariant(v);
                 if( i != null ) { s.padding(i); return true; }
             }
         case "padding-top":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.paddingTop = i; return true; }
         case "padding-left":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.paddingLeft = i; return true; }
         case "padding-right":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.paddingRight = i; return true; }
         case "padding-bottom":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.paddingBottom = i; return true; }
         case "margin":
             switch( v ) {
             case VGroup([a, b]):
-                var a = getVal(a), b = getVal(b);
+                var a = getVariant(a), b = getVariant(b);
                 if( a != null && b != null ) {
                     s.marginTop = s.marginBottom = a;
                     s.marginLeft = s.marginRight = b;
                     return true;
                 }
             default:
-                var i = getVal(v);
+                var i = getVariant(v);
                 if( i != null ) { s.margin(i); return true; }
             }
         case "margin-top":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.marginTop = i; return true; }
         case "margin-left":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.marginLeft = i; return true; }
         case "margin-right":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.marginRight = i; return true; }
         case "margin-bottom":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.marginBottom = i; return true; }
         case "width":
             var i = getVal(v);
@@ -132,6 +133,9 @@ class Parser {
                     switch (p) {
                         case Percent(x):
                             s.percentWidth = x * 100;
+                            return true;
+                        case REM(_), VH(_), VW(_):
+                            s.width = p;
                             return true;
                         default:
                     }
@@ -153,6 +157,9 @@ class Parser {
                     switch (p) {
                         case Percent(x):
                             s.percentHeight = x * 100;
+                            return true;
+                        case REM(_), VH(_), VW(_):
+                            s.height = p;
                             return true;
                         default:
                     }
@@ -248,16 +255,16 @@ class Parser {
 
 
         case "background-image-clip-top":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.backgroundImageClipTop = i; return true; }
         case "background-image-clip-left":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.backgroundImageClipLeft = i; return true; }
         case "background-image-clip-bottom":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.backgroundImageClipBottom = i; return true; }
         case "background-image-clip-right":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.backgroundImageClipRight = i; return true; }
         case "background-image-clip":
             if (applyComposite(["background-image-clip-top",
@@ -275,16 +282,16 @@ class Parser {
 
 
         case "background-image-slice-top":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.backgroundImageSliceTop = i; return true; }
         case "background-image-slice-left":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.backgroundImageSliceLeft = i; return true; }
         case "background-image-slice-bottom":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.backgroundImageSliceBottom = i; return true; }
         case "background-image-slice-right":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) { s.backgroundImageSliceRight = i; return true; }
         case "background-image-slice":
             if (applyComposite(["background-image-slice-top",
@@ -336,7 +343,7 @@ class Parser {
                 s.borderRadius = MathUtil.MIN_INT;
                 return true;
             }
-            var i = getVal(v);
+            var i = getVariant(v, true, false);
             if( i != null ) {
                 s.borderRadius = i;
                 return true;
@@ -359,8 +366,40 @@ class Parser {
                 s.borderRightColor = MathUtil.MIN_INT;// Transparent;
                 return true;
             }
+        case "border-top":
+            if( applyComposite(["border-top-width", "border-top-color"], v, s) )
+                return true;
+            if (getIdent(v) == "none" ) {
+                s.borderTopSize = MathUtil.MIN_INT;
+                s.borderTopColor = MathUtil.MIN_INT;// Transparent;
+                return true;
+            }
+        case "border-left":
+            if( applyComposite(["border-left-width", "border-left-color"], v, s) )
+                return true;
+            if (getIdent(v) == "none" ) {
+                s.borderLeftSize = MathUtil.MIN_INT;
+                s.borderLeftColor = MathUtil.MIN_INT;// Transparent;
+                return true;
+            }
+        case "border-bottom":
+            if( applyComposite(["border-bottom-width", "border-bottom-color"], v, s) )
+                return true;
+            if (getIdent(v) == "none" ) {
+                s.borderBottomSize = MathUtil.MIN_INT;
+                s.borderBottomColor = MathUtil.MIN_INT;// Transparent;
+                return true;
+            }
+        case "border-right":
+            if( applyComposite(["border-right-width", "border-right-color"], v, s) )
+                return true;
+            if (getIdent(v) == "none" ) {
+                s.borderRightSize = MathUtil.MIN_INT;
+                s.borderRightColor = MathUtil.MIN_INT;// Transparent;
+                return true;
+            }
         case "border-width" | "border-size":
-            var i = getVal(v);
+            var i = getVariant(v, true, false);
             if( i != null ) {
 //              s.borderSize = i;
                 s.borderTopSize = i;
@@ -370,25 +409,25 @@ class Parser {
                 return true;
             }
         case "border-top-width" | "border-top-size":
-            var i = getVal(v);
+            var i = getVariant(v, true, false);
             if( i != null ) {
                 s.borderTopSize = i;
                 return true;
             }
         case "border-left-width" | "border-left-size":
-            var i = getVal(v);
+            var i = getVariant(v, true, false);
             if( i != null ) {
                 s.borderLeftSize = i;
                 return true;
             }
         case "border-bottom-width" | "border-bottom-size":
-            var i = getVal(v);
+            var i = getVariant(v, true, false);
             if( i != null ) {
                 s.borderBottomSize = i;
                 return true;
             }
         case "border-right-width" | "border-right-size":
-            var i = getVal(v);
+            var i = getVariant(v, true, false);
             if( i != null ) {
                 s.borderRightSize = i;
                 return true;
@@ -468,12 +507,10 @@ class Parser {
         case "cursor":
             var v = getIdent(v);
             if (v != null) {
-                if (v == "pointer" || v == "default") {
-                    s.cursor = v;
-                    return true;
-                }
-                return false;
+                s.cursor = v;
+                return true;
             }
+            return false;
         case "filter":
             var arr = getCall(v);
             if (arr != null) {
@@ -494,13 +531,13 @@ class Parser {
         case "spacing":
             return applyComposite(["vertical-spacing", "horizontal-spacing"], v, s);
         case "horizontal-spacing":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) {
                 s.horizontalSpacing = i;
                 return true;
             }
         case "vertical-spacing":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) {
                 s.verticalSpacing = i;
                 return true;
@@ -557,23 +594,37 @@ class Parser {
                 return true;
             default:
             }
+        case "text-align":
+            var x = getIdent(v);
+            switch(x) {
+            case "left" | "right" | "center" | "justify":
+                s.textAlign = x;
+                return true;
+            default:
+            }
         case "opacity":
             var i = getVal(v);
             if( i != null ) {
                 s.opacity = i;
                 return true;
             }
+        case "background-opacity":
+            var i = getVal(v);
+            if( i != null ) {
+                s.backgroundOpacity = i;
+                return true;
+            }
 
         case "offset":
             return applyComposite(["offset-left", "offset-top"], v, s);
         case "offset-left":
-            var i = getVal(v);
+            var i = getVariant(v);
             if( i != null ) {
                 s.offsetLeft = i;
                 return true;
             }
         case "offset-top":
-            var i = getVal(v);
+            var i = getVariant(v);
             if ( i != null ) {
                 s.offsetTop = i;
                 return true;
@@ -589,7 +640,7 @@ class Parser {
                 return true;
             }
         case "font-size":
-            var i = getVal(v);
+            var i = getVariant(v, true, false);
             if ( i != null ) {
                 s.fontSize = i;
                 return true;
@@ -779,7 +830,7 @@ class Parser {
     function getGroup<T>( v : Value, f : Value -> Null<T> ) : Null<Array<T>> {
         switch(v) {
         case VGroup(l):
-            var a = [];
+            var a = new Array<T>();
             for( v in l ) {
                 var v = f(v);
                 if( v == null ) return null;
@@ -795,7 +846,7 @@ class Parser {
     function getList<T>( v : Value, f : Value -> Null<T> ) : Null<Array<T>> {
         switch(v) {
         case VList(l):
-            var a = [];
+            var a = new Array<T>();
             for( v in l ) {
                 var v = f(v);
                 if( v == null ) return null;
@@ -814,6 +865,9 @@ class Parser {
             switch( u ) {
             case "px": Std.int(f);
             case "pt": Std.int(f * 4 / 3);
+//            case "rem": Std.int(f * pixelsPerRem);
+//            case "vh": Std.int(f / 100 * viewportHeight);
+//            case "vw": Std.int(f / 100 * viewportWidth);
             default: null;
             }
         case VInt(v):
@@ -900,6 +954,9 @@ class Parser {
             case "px": Pix(f);
             case "pt": Pix(f * 4 / 3);
             case "%": Percent(f / 100);
+            case "rem": REM(f);
+            case "vh": VH(f);
+            case "vw": VW(f);
             default: null;
             }
         case VInt(v):
@@ -908,6 +965,27 @@ class Parser {
             Pix(v);
         default:
             null;
+        };
+    }
+
+    function getVariant( v : Value, allowRem:Bool=true, allowViewport:Bool=true) : Null<Variant> {
+        return switch( v ) {
+            case VUnit(f, u):
+                switch( u ) {
+                    case "px": f;
+                    case "pt": f * 4 / 3;
+                    case "%": Percent(f / 100);
+                    case "rem": allowRem ? REM(f) : null;
+                    case "vh": allowViewport ? VH(f) : null;
+                    case "vw": allowViewport ? VW(f) : null;
+                    default: null;
+                }
+            case VInt(v):
+                v;
+            case VFloat(v):
+                v;
+            default:
+                null;
         };
     }
 
@@ -1373,7 +1451,7 @@ class Parser {
                 while( isSpace(c0) )
                     c0 = next();
                 if( c0 != ")".code )
-                    throw "Invalid char " + String.fromCharCode(c0);
+                    throw "Invalid char " + c0;//String.fromCharCode(c0);   //FIXME Error. s : String -> haxe.ui.util.VariantType has no field fromCharCode
                 return s;
             default: throw "assert";
             }

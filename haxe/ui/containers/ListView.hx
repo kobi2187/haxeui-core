@@ -1,47 +1,43 @@
 package haxe.ui.containers;
 
-import haxe.Json;
-import haxe.ui.components.Label;
-import haxe.ui.containers.ScrollView;
-import haxe.ui.containers.VBox;
+import haxe.ui.core.ClassFactory;
+import haxe.ui.core.BasicItemRenderer;
 import haxe.ui.core.Component;
-import haxe.ui.core.IClonable;
 import haxe.ui.core.IDataComponent;
+import haxe.ui.core.InteractiveComponent;
 import haxe.ui.core.ItemRenderer;
 import haxe.ui.core.MouseEvent;
 import haxe.ui.core.UIEvent;
+import haxe.ui.data.ArrayDataSource;
+import haxe.ui.data.DataSource;
+import haxe.ui.data.transformation.NativeTypeTransformer;
 
-class ListView extends ScrollView implements IDataComponent implements IClonable<ListView> {
+class ListView extends ScrollView implements IDataComponent {
     private var _itemRenderer:ItemRenderer;
 
     public function new() {
         super();
     }
 
-    private override function createChildren():Void {
+    private override function createChildren() {
         super.createChildren();
-
-        var vbox:VBox = new VBox();
-        vbox.addClass("listview-contents");
-        addComponent(vbox);
     }
 
-    private override function onReady() {
-        super.onReady();
-        if (_itemRenderer == null) {
-            addComponent(new BasicItemRenderer());
-        }
+    private override function createContentContainer() {
+        super.createContentContainer();
+        _contents.percentWidth = 100;
+        _contents.addClass("listview-contents");
     }
-
+    
     public override function addComponent(child:Component):Component {
         var r = null;
-        if (Std.is(child, ItemRenderer) && _itemRenderer == null) {
+        if (Std.is(child, ItemRenderer) && (_itemRenderer == null && _itemRendererFunction == null)) {
             _itemRenderer = cast(child, ItemRenderer);
             #if haxeui_luxe
             _itemRenderer.hide();
             #end
-            if (_data != null) {
-                data = _data;
+            if (_dataSource != null) {
+                syncUI();
             }
         } else {
             if (Std.is(child, ItemRenderer)) {
@@ -58,6 +54,13 @@ class ListView extends ScrollView implements IDataComponent implements IClonable
             return;
         }
 
+        var arr = event.target.findComponentsUnderPoint(event.screenX, event.screenY);
+        for (a in arr) {
+            if (Std.is(a, InteractiveComponent)) {
+                return;
+            }
+        }
+        
         if (_currentSelection != null) {
             _currentSelection.removeClass(":selected");
         }
@@ -72,12 +75,16 @@ class ListView extends ScrollView implements IDataComponent implements IClonable
         return _currentSelection;
     }
 
-    public function addItem(data:Dynamic):ItemRenderer {
-        if (_itemRenderer == null) {
-            return null;
+    public function resetSelection() {
+        if (_currentSelection != null) {
+            _currentSelection.removeClass(":selected");
+            _currentSelection = null;
         }
+    }
 
-        var r = _itemRenderer.cloneComponent();
+    public function addItem(data:Dynamic):ItemRenderer {
+        var r = itemToRenderer(data);
+        r.percentWidth = 100;
         var n = contents.childComponents.length;
         var item:ItemRenderer = cast addComponent(r);
         item.addClass(n % 2 == 0 ? "even" : "odd");
@@ -115,60 +122,101 @@ class ListView extends ScrollView implements IDataComponent implements IClonable
         return (cy / n);
     }
 
-    private var _data:Dynamic;
-    public var data(get, set):Dynamic;
-    private function get_data():Dynamic {
-        return null;
+    private var _itemRendererFunction:ItemRendererFunction;
+    public var itemRendererFunction(get, set):ItemRendererFunction;
+    private function get_itemRendererFunction():ItemRendererFunction {
+        return _itemRendererFunction;
     }
-    private function set_data(value:Dynamic):Dynamic {
-        _data = value;
-        if (_itemRenderer == null) {
-            return value;
+    private function set_itemRendererFunction(value:ItemRendererFunction):ItemRendererFunction {
+        if (_itemRendererFunction != value) {
+            _itemRendererFunction = value;
+
+            syncUI();
+        }
+
+        return value;
+    }
+
+    private var _dataSource:DataSource<Dynamic>;
+    public var dataSource(get, set):DataSource<Dynamic>;
+    private function get_dataSource():DataSource<Dynamic> {
+        if (_dataSource == null) {
+            _dataSource = new ArrayDataSource(new NativeTypeTransformer());
+            _dataSource.onChange = onDataSourceChanged;
+        }
+        return _dataSource;
+    }
+    private function set_dataSource(value:DataSource<Dynamic>):DataSource<Dynamic> {
+        _dataSource = value;
+        _dataSource.transformer = new NativeTypeTransformer();
+        syncUI();
+        _dataSource.onChange = onDataSourceChanged;
+        return value;
+    }
+
+    private function onDataSourceChanged() {
+        if (_ready == true) {
+            syncUI();
+        }
+    }
+
+    private function syncUI() {
+        if (_dataSource == null) {
+            return;
         }
 
         lockLayout();
 
-        if (Std.is(value, String)) {
-            var stringValue:String = StringTools.trim('${value}');
-            if (StringTools.startsWith(stringValue, "<")) { // xml
-                var xml:Xml = Xml.parse(stringValue).firstElement();
-                for (el in xml.elements()) {
-                    var o:Dynamic = { };
-                    Reflect.setField(o, "id", el.nodeName);
-                    for (attr in el.attributes()) {
-                        Reflect.setField(o, attr, el.get(attr));
-                    }
-                    addItem(o);
+        for (n in 0..._dataSource.size) {
+            var data:Dynamic = _dataSource.get(n);
+            var item:ItemRenderer = null;
+            if (n < itemCount) {
+                item = cast(contents.childComponents[n], ItemRenderer);
+                item.removeClass("even");
+                item.removeClass("odd");
+
+                if (_itemRendererFunction != null
+                    && !Std.is(item, _itemRendererFunction(data).generator)) {
+                    contents.removeComponent(item);
+                    item = cast addComponent(itemToRenderer(data));  //TODO - addComponentAt
+                    contents.setComponentIndex(item, n);
                 }
-            } else if (StringTools.startsWith(stringValue, "[")) { // json array
-                var json:Array<Dynamic> = Json.parse(StringTools.replace(stringValue, "'", "\""));
-                for (o in json) {
-                    addItem(o);
-                }
+            } else {
+                item = cast addComponent(itemToRenderer(data));      //TODO - addComponentAt
+                contents.setComponentIndex(item, n);
             }
+
+            item.addClass(n % 2 == 0 ? "even" : "odd");
+            item.data = data;
+        }
+
+        while (_dataSource.size < itemCount) {
+            contents.removeComponent(contents.childComponents[contents.childComponents.length - 1]); // remove last
         }
 
         unlockLayout();
+    }
 
-        return value;
+    private function itemToRenderer(data:Dynamic):ItemRenderer
+    {
+        if (_itemRendererFunction != null) {
+            return _itemRendererFunction(data).newInstance();
+        } else {
+            if (_itemRenderer == null) {
+                _itemRenderer = new BasicItemRenderer();
+            }
+            return _itemRenderer.cloneComponent();
+        }
+    }
+
+    //***********************************************************************************************************
+    // Clonable
+    //***********************************************************************************************************
+    public override function cloneComponent():ListView {
+        if (_dataSource != null) {
+            c.dataSource = _dataSource.clone();
+        }
     }
 }
 
-class BasicItemRenderer extends ItemRenderer {
-    public function new() {
-        super();
-
-        addClass("itemrenderer"); // TODO: shouldnt have to do this
-        this.percentWidth = 100;
-
-        var hbox:HBox = new HBox();
-        hbox.percentWidth = 100;
-
-        var label:Label = new Label();
-        label.id = "text";
-        label.percentWidth = 100;
-        hbox.addComponent(label);
-
-        addComponent(hbox);
-    }
-}
+typedef ItemRendererFunction = Dynamic->ClassFactory<ItemRenderer>;

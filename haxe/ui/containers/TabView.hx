@@ -4,15 +4,11 @@ import haxe.ui.components.Button;
 import haxe.ui.components.TabBar;
 import haxe.ui.core.Component;
 import haxe.ui.core.UIEvent;
-import haxe.ui.core.IClonable;
-import haxe.ui.layouts.VerticalLayout;
-import haxe.ui.styles.Style;
-import haxe.ui.util.Size;
-import haxe.ui.util.Variant;
 import haxe.ui.layouts.DefaultLayout;
+import haxe.ui.util.Size;
 
-@:dox(icon="/icons/ui-tab-content.png")
-class TabView extends Component implements IClonable<TabView> {
+@:dox(icon = "/icons/ui-tab-content.png")
+class TabView extends Component {
     private var _tabs:TabBar;
     private var _content:VBox;
     private var _views:Array<Component>;
@@ -24,15 +20,16 @@ class TabView extends Component implements IClonable<TabView> {
     //***********************************************************************************************************
     // Internals
     //***********************************************************************************************************
-    private override function createDefaults():Void {
+    private override function createDefaults() {
+        super.createDefaults();
         _defaultLayout = new TabViewLayout();
     }
 
-    private override function createChildren():Void {
+    private override function createChildren() {
         super.createChildren();
 
         if (_views == null) {
-            _views = new Array<Component>();
+            _views = [];
         }
 
         if (_content == null) {
@@ -133,17 +130,35 @@ class TabView extends Component implements IClonable<TabView> {
         return value;
     }
 
+    public function removeAllTabs() {
+        if (_views != null) {
+            for (view in _views) {
+                removeComponent(view);
+            }
+            _views = [];
+        }
+        _currentView = null;
+        _pageIndex = -1;
+        if (_content != null) {
+            _content.removeAllComponents();
+        }
+        if (_tabs != null) {
+            _tabs.removeAllComponents();
+            _tabs.resetSelection();
+        }
+    }
+    
     //***********************************************************************************************************
     // Event Handlers
     //***********************************************************************************************************
-    private function _onTabsChange(event:UIEvent):Void {
+    private function _onTabsChange(event:UIEvent) {
         pageIndex = _tabs.selectedIndex;
     }
 }
 
 @:dox(hide)
 class TabViewLayout extends DefaultLayout {
-    private override function repositionChildren():Void {
+    private override function repositionChildren() {
         var tabs:TabBar = component.findComponent("tabview-tabs");
         var content:Component = component.findComponent("tabview-content");
         if (tabs == null || content == null) {
@@ -159,11 +174,11 @@ class TabViewLayout extends DefaultLayout {
         }
     }
 
-    private override function resizeChildren():Bool {
+    private override function resizeChildren() {
         var content:Component = component.findComponent("tabview-content");
         var tabs:TabBar = component.findComponent("tabview-tabs");
         if (tabs == null || content == null) {
-            return false;
+            return;
         }
 
         if (component.autoHeight == false) {
@@ -174,21 +189,19 @@ class TabViewLayout extends DefaultLayout {
             content.componentWidth = component.componentWidth;
         } else {
         }
-
-        return true;
     }
 
     private override function get_usableSize():Size {
         var size:Size = super.get_usableSize();
         var tabs:TabBar = component.findComponent("tabview-tabs");
         if (tabs != null && tabs.componentHeight != null) {
-            size.height -= tabs.componentHeight;// - 1;
+            size.height -= tabs.componentHeight; // - 1;
         }
         return size;
     }
 
-    public override function calcAutoSize():Size {
-        var size:Size = super.calcAutoSize();
+    public override function calcAutoSize(exclusions:Array<Component> = null):Size {
+        var size:Size = super.calcAutoSize(exclusions);
         return size;
     }
 }

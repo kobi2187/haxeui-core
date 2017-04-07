@@ -2,7 +2,6 @@ package haxe.ui.components;
 
 import haxe.ds.StringMap;
 import haxe.ui.core.Behaviour;
-import haxe.ui.core.IClonable;
 import haxe.ui.core.InteractiveComponent;
 import haxe.ui.core.MouseEvent;
 import haxe.ui.core.UIEvent;
@@ -13,8 +12,8 @@ import haxe.ui.util.Variant;
 /**
  Optionbox component where only one option of a group may be selected at a single time
 **/
-@:dox(icon="/icons/ui-radio-buttons.png")
-class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
+@:dox(icon = "/icons/ui-radio-buttons.png")
+class OptionBox extends InteractiveComponent {
     private static var _groups:StringMap<Array<OptionBox>>;
 
     private var _value:OptionBoxValue;
@@ -26,28 +25,29 @@ class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
         if (_groups == null) {
             _groups = new StringMap<Array<OptionBox>>();
         }
-        group = "defaultGroup";
+        groupName = "defaultGroup";
     }
 
     //***********************************************************************************************************
     // Internals
     //***********************************************************************************************************
-    private override function createDefaults():Void {
-        _defaultBehaviours = [
+    private override function createDefaults() {
+        super.createDefaults();
+        defaultBehaviours([
             "text" => new OptionBoxDefaultTextBehaviour(this),
             "selected" => new OptionBoxDefaultSelectedBehaviour(this)
-        ];
+        ]);
         _defaultLayout = new HorizontalLayout();
     }
 
-    private override function create():Void {
+    private override function create() {
         super.create();
         behaviourSet("text", _text);
-        behaviourSet("group", _group);
+        behaviourSet("group", _groupName);
         behaviourSet("selected", selected);
     }
 
-    private override function createChildren():Void {
+    private override function createChildren() {
         if (_value == null) {
             _value = new OptionBoxValue();
             _value.id = "optionbox-value";
@@ -60,7 +60,7 @@ class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
         }
     }
 
-    private override function destroyChildren():Void {
+    private override function destroyChildren() {
         if (_value != null) {
             removeComponent(_value);
             _value = null;
@@ -89,7 +89,7 @@ class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
         return value;
     }
 
-    private override function applyStyle(style:Style):Void {
+    private override function applyStyle(style:Style) {
         super.applyStyle(style);
         if (_label != null) {
             _label.customStyle.color = style.color;
@@ -113,8 +113,8 @@ class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
             return value;
         }
 
-        if (_group != null && value == false) { // dont allow false if no other group selection
-            var arr:Array<OptionBox> = _groups.get(_group);
+        if (_groupName != null && value == false) { // dont allow false if no other group selection
+            var arr:Array<OptionBox> = _groups.get(_groupName);
             var hasSelection:Bool = false;
             if (arr != null) {
                 for (option in arr) {
@@ -140,8 +140,8 @@ class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
         }
         */
 
-        if (_group != null && value == true) { // set all the others in group
-            var arr:Array<OptionBox> = _groups.get(_group);
+        if (_groupName != null && value == true) { // set all the others in group
+            var arr:Array<OptionBox> = _groups.get(_groupName);
             if (arr != null) {
                 for (option in arr) {
                     if (option != this) {
@@ -155,23 +155,23 @@ class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
     }
 
     private function get_selected():Bool {
-        return _selected;
+        return behaviourGet("selected");
     }
 
     private function toggleSelected():Bool {
         return selected = !selected;
     }
 
-    private var _group:String;
+    private var _groupName:String;
     /**
      The group that this optionbox belongs to, any options that belong to the same group can only ever have a single option selected at a time
     **/
-    @:clonable public var group(get, set):String;
-    private function get_group():String {
-        return _group;
+    @:clonable public var groupName(get, set):String;
+    private function get_groupName():String {
+        return _groupName;
     }
 
-    private function set_group(value:String):String {
+    private function set_groupName(value:String):String {
         if (value != null) {
             var arr:Array<OptionBox> = _groups.get(value);
             if (arr != null) {
@@ -179,11 +179,11 @@ class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
             }
         }
 
-        _group = value;
+        _groupName = value;
         behaviourSet("group", value);
         var arr:Array<OptionBox> = _groups.get(value);
         if (arr == null) {
-            arr = new Array<OptionBox>();
+            arr = [];
         }
 
         if (optionInGroup(value, this) == false) {
@@ -199,7 +199,7 @@ class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
     **/
     public var selectedOption(get, null):OptionBox;
     private function get_selectedOption():OptionBox {
-        var arr:Array<OptionBox> = getGroupOptions(_group);
+        var arr:Array<OptionBox> = getGroupOptions(_groupName);
         var selectionOption:OptionBox = null;
         if (arr != null) {
             for (test in arr) {
@@ -209,25 +209,24 @@ class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
                 }
             }
         }
-
         return selectionOption;
     }
 
     //***********************************************************************************************************
     // Events
     //***********************************************************************************************************
-    private function _onClick(event:MouseEvent):Void {
+    private function _onClick(event:MouseEvent) {
         toggleSelected();
         var event:UIEvent = new UIEvent(UIEvent.CHANGE);
         dispatch(event);
     }
 
-    private function _onMouseOver(event:MouseEvent):Void {
+    private function _onMouseOver(event:MouseEvent) {
         addClass(":hover");
         _value.addClass(":hover");
     }
 
-    private function _onMouseOut(event:MouseEvent):Void {
+    private function _onMouseOut(event:MouseEvent) {
         removeClass(":hover");
         _value.removeClass(":hover");
     }
@@ -262,6 +261,10 @@ class OptionBox extends InteractiveComponent implements IClonable<OptionBox> {
 @:access(haxe.ui.components.OptionBox)
 class OptionBoxDefaultTextBehaviour extends Behaviour {
     public override function set(value:Variant) {
+        if (value == null || value.isNull) {
+            return;
+        }
+
         var optionbox:OptionBox = cast _component;
         if (optionbox._label == null) {
             optionbox._label = new Label();
@@ -293,6 +296,11 @@ class OptionBoxDefaultSelectedBehaviour extends Behaviour {
             optionbox._value.removeClass(":selected");
         }
     }
+
+    public override function get():Variant {
+        var optionbox:OptionBox = cast _component;
+        return optionbox._selected;
+    }
 }
 
 //***********************************************************************************************************
@@ -306,7 +314,7 @@ class OptionBoxValue extends InteractiveComponent {
 
     public function new() {
         super();
-        #if openfl
+        #if (openfl && !flixel)
         mouseChildren = false;
         #end
 
@@ -316,7 +324,7 @@ class OptionBoxValue extends InteractiveComponent {
         addComponent(_icon);
     }
 
-    private override function applyStyle(style:Style):Void {
+    private override function applyStyle(style:Style) {
         super.applyStyle(style);
         if (_icon != null) {
             _icon.resource = style.icon;
